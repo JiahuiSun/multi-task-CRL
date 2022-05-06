@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
-from network import BaseNet, Actor, Critic
+from network import BaseNet, Actor, Critic, Penalty
 from MTRCPO import MTRCPO
 from task_scheduler import TaskScheduler
 
@@ -29,12 +29,11 @@ def main(args):
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
     train_envs = DummyVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.training_num)], norm_obs=True
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     )
     # train_envs = SubprocVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.training_num)], norm_obs=True
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     # )
-    # TODO: 千万记得保存norm_obs
     task_sche = TaskScheduler()
 
     # seed
@@ -49,10 +48,8 @@ def main(args):
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
-    penalty = nn.Sequential(
-        nn.Parameter(np.log(max(np.exp(args.penalty_init)-1, 1e-8))),
-        nn.Softplus()
-    ).to(args.device)
+    penalty_init = np.log(max(np.exp(args.penalty_init)-1, 1e-8))
+    penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32)).to(args.device)
  
     def dist(*logits):
         return Independent(Normal(*logits), 1)
@@ -73,11 +70,13 @@ def main(args):
 
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
     critic_optim = Adam(list(critic.parameters())+list(cost_critic.parameters()), lr=args.lr_critic)
-    penalty_optim = Adam(penalty.parameters(), lr=args.lr_penalty)
+    penalty_optim = Adam(penalty, lr=args.lr_penalty)
 
     agent = MTRCPO(
         env=train_envs,
         task_sche=task_sche,
+        state_shape=state_shape,
+        action_shape=action_shape,
         actor=actor,
         critic=critic,
         cost_critic=cost_critic,
@@ -86,47 +85,36 @@ def main(args):
         critic_optim=critic_optim,
         penalty_optim=penalty_optim,
         dist=dist,
-        writer=writer
+        writer=writer,
+        device=args.device,
+        # 参数设置参考TensorFlow
+        n_epoch=args.n_epoch,
+        episode_per_task=args.episode_per_task,
+        lr_actor=args.lr_actor,
+        lr_critic=args.lr_critic,
+        lr_penalty=args.lr_penalty
     )
-    agent.learn(args.n_epoch)
+    agent.learn()
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Distribution Robust RL")
-    parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
-    parser.add_argument('--seed', type=int, default=12)
-    parser.add_argument('--training_num', type=int, default=4)
+    parser = argparse.ArgumentParser("Multi-task Constrained RL")
+    parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
+    parser.add_argument('--seed', type=int, default=100)
+    parser.add_argument('--nproc', type=int, default=5)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
-
     parser.add_argument('--taskid_dim', type=int, default=6)
-    parser.add_argument('--n_encoder', type=int, default=10)
-    parser.add_argument('--n_epoch', type=int, default=10)
-    parser.add_argument('--lr_actor', type=float, default=3e-4)
-    parser.add_argument('--lr_critic', type=float, default=3e-4)
-    parser.add_argument('--lr_penalty', type=float, default=3e-4)
     parser.add_argument('--penalty_init', type=float, default=1)
-    
 
-    parser.add_argument('--recompute_adv', type=int, default=0, help='whether to recompute adv')
-    parser.add_argument('--value_clip', type=int, default=1, help='whether to clip value')
-    parser.add_argument('--add_param', type=int, default=1, help='whether to add param')
-
-    parser.add_argument('--max_grad_norm', type=float, default=0.5)
-    parser.add_argument('--traj_per_param', type=float, default=1)
-    parser.add_argument('--action_scaling', type=int, default=0, help='whether to scale action')
-    parser.add_argument('--block_num', type=int, default=100)
-    parser.add_argument('--param_dist', type=str, default='gaussian', choices=['gaussian', 'uniform'])
-    parser.add_argument('--clip', type=float, default=0.2)
-    parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--gae_lambda', type=float, default=0.95)
-    parser.add_argument('--total_iters', type=int, default=1000)
-    parser.add_argument('--norm_adv', type=int, default=1, help='whether to norm adv')
-    parser.add_argument('--repeat_per_collect', type=float, default=10)
-    parser.add_argument('--log_freq', type=int, default=1)
-    parser.add_argument('--save_freq', type=int, default=100)
+    parser.add_argument('--n_encoder', type=int, default=10)
+    parser.add_argument('--n_epoch', type=int, default=1000)
+    parser.add_argument('--episode_per_task', type=int, default=10)
+    parser.add_argument('--lr_actor', type=float, default=3e-4)
+    parser.add_argument('--lr_critic', type=float, default=1e-3)
+    parser.add_argument('--lr_penalty', type=float, default=5e-2)
     args = parser.parse_args()
 
     main(args)

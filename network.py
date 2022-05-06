@@ -79,3 +79,22 @@ class Critic(nn.Module):
         state_task_emb = self.base_net(obs, taskid)
         logits = self.last(state_task_emb)
         return logits
+
+
+class Penalty(nn.Module):
+    def __init__(self, penalty_init=1) -> None:
+        super().__init__()
+        penalty_init = np.log(max(np.exp(penalty_init)-1, 1e-8))
+        self.penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32))
+    
+    def forward(self):
+        # penalty = nn.Parameter
+        # optim = Adam(penalty)
+
+        # loss = -penalty * ()
+        # loss.backward()
+        # optim.step(), get new penalty
+        # penalty = nn.Parameter(F.relu(new penalty))
+        # TODO: 我的疑惑是，梯度更新是对clip之前的penalty还是之后的penalty？
+        # 如果按照TensorFlow是对clip之前的，而我自己的理解是对clip之后的
+        return self.penalty, F.relu(self.penalty).detach()
