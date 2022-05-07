@@ -49,8 +49,7 @@ class MTRCPO:
         device='cpu',
         # 接下来的参数可调
         n_epoch=1000,
-        episode_per_task=10,
-        task_per_epoch=10,
+        episode_per_proc=10,
         value_clip=False,
         clip=0.2,
         repeat_per_collect=10,
@@ -79,8 +78,7 @@ class MTRCPO:
         self.dist_fn = dist_fn
 
         self.n_epoch = n_epoch
-        self.episode_per_task = episode_per_task
-        self.task_per_epoch = task_per_epoch
+        self.episode_per_proc = episode_per_proc
         self.value_clip = value_clip
         self.clip = clip
         self.repeat_per_collect = repeat_per_collect
@@ -101,17 +99,21 @@ class MTRCPO:
         self.log_dir = writer.log_dir
         self.nproc = len(env)
         self.step_per_episode = 1000
-        self.step_per_task = self.step_per_episode * self.episode_per_task
+        self.step_per_task = self.step_per_episode * self.episode_per_proc
  
     def learn(self):
         st_time = time.time()
         all_epoch_cost = 0
         for epoch in tqdm(range(self.n_epoch)):
             st1 = time.time()
-            sub_task_list = self.task_sche.random_subset(self.task_per_epoch)
-
+            # 给我一批任务，最大化这些任务的average performance，即梯度求平均
+            # 如果是一批同样的任务，等价于最大化这个任务的performance
+            sub_task_list = self.task_sche.random_subset()
+            # 如果是multi-task，自己计算reward和cost
+            # 如果是single-task或者只有threshold变化，不用自己计算
             buffer = self.rollout(sub_task_list=sub_task_list)
             st2 = time.time()
+
             # training
             buffer = self.compute_gae(buffer)
             penalty = F.relu(self.penalty.detach())
@@ -304,8 +306,8 @@ class MTRCPO:
             obs = obs_next
 
         for param, data in buffer.items():
-            data['avg_cumu_rew'] = np.sum(data['rew']) / (self.episode_per_task*len(data['rew']))
-            data['avg_cumu_cost'] = np.sum(data['cost']) / (self.episode_per_task*len(data['rew']))
+            data['avg_cumu_rew'] = np.sum(data['rew']) / (self.episode_per_proc*len(data['rew']))
+            data['avg_cumu_cost'] = np.sum(data['cost']) / (self.episode_per_proc*len(data['rew']))
             for k, trans in data.items():
                 if k in ['avg_cumu_rew', 'avg_cumu_cost']:
                     continue
