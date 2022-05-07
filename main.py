@@ -49,7 +49,7 @@ def main(args):
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
     penalty_init = np.log(max(np.exp(args.penalty_init)-1, 1e-8))
-    penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32)).to(args.device)
+    penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32).to(args.device))
  
     def dist(*logits):
         return Independent(Normal(*logits), 1)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=5)
+    parser.add_argument('--nproc', type=int, default=2)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--n_encoder', type=int, default=10)
     parser.add_argument('--n_epoch', type=int, default=1000)
-    parser.add_argument('--episode_per_task', type=int, default=10)
+    parser.add_argument('--episode_per_task', type=int, default=1)
     parser.add_argument('--task_per_epoch', type=int, default=10)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
