@@ -89,8 +89,7 @@ def main(args):
         device=args.device,
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
-        episode_per_task=args.episode_per_task,
-        task_per_epoch=args.task_per_epoch,
+        episode_per_proc=args.episode_per_proc,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -112,8 +111,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--n_encoder', type=int, default=10)
     parser.add_argument('--n_epoch', type=int, default=1000)
-    parser.add_argument('--episode_per_task', type=int, default=1)
-    parser.add_argument('--task_per_epoch', type=int, default=10)
+    parser.add_argument('--episode_per_proc', type=int, default=1)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)
