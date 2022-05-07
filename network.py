@@ -13,13 +13,13 @@ class BaseNet(nn.Module):
     ) -> None:
         super().__init__()
         input_dim = int(np.prod(state_shape))
-        self.state_encoder_list = [
+        self.state_encoder_list = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(input_dim, 128),
                 nn.Tanh()
             )
             for _ in range(n_encoder)
-        ]
+        ])
         self.task_encoder = nn.Sequential(
             nn.Linear(taskid_dim, 128),
             nn.Tanh()
