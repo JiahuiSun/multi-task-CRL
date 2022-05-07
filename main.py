@@ -109,9 +109,10 @@ if __name__ == '__main__':
     )
     parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--penalty_init', type=float, default=1)
+    parser.add_argument('--cost_lim', type=float, default=20)
 
-    parser.add_argument('--n_encoder', type=int, default=10)
     parser.add_argument('--n_epoch', type=int, default=1000)
+    # 如果是multi-task，设置task_per_epoch来控制每个epoch的task数量
     parser.add_argument('--episode_per_task', type=int, default=1)
     parser.add_argument('--task_per_epoch', type=int, default=10)
     parser.add_argument('--lr_actor', type=float, default=3e-4)

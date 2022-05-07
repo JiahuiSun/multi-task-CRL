@@ -9,38 +9,21 @@ class BaseNet(nn.Module):
         self,
         state_shape,
         taskid_dim,
-        n_encoder=10
+        hidden_dim=256
     ) -> None:
         super().__init__()
         input_dim = int(np.prod(state_shape))
-        self.state_encoder_list = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(input_dim, 128),
-                nn.Tanh()
-            )
-            for _ in range(n_encoder)
-        ])
-        self.task_encoder = nn.Sequential(
-            nn.Linear(taskid_dim, 128),
+        self.fc = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh()
         )
-        self.mlp = nn.Sequential(
-            nn.Linear(128, 128),
-            nn.Tanh()
-        )
-        self.output_dim = 256
+        self.output_dim = hidden_dim
     
     def forward(self, obs, taskid):
-        state_embs = th.stack([state_encoder(obs) for state_encoder in self.state_encoder_list], dim=0)  # KBF
-        state_embs = state_embs.permute(1, 0, 2)  # BKF
-        task_emb = self.task_encoder(taskid)  # BF
-        task_emb_nograd = task_emb.detach()
-        atten_logit = state_embs.matmul(task_emb_nograd.unsqueeze(-1))  # BK1
-        atten_weight = F.softmax(atten_logit, dim=1)
-        state_emb = atten_weight.permute(0, 2, 1).matmul(state_embs).squeeze(1)  # BF
-        state_emb = self.mlp(state_emb)
-        state_task_emb = th.cat([task_emb, state_emb], dim=1)  # B(2F)
-        return state_task_emb
+        logits = self.fc(obs)
+        return logits
 
 
 class Actor(nn.Module):
