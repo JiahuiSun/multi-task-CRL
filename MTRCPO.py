@@ -1,6 +1,7 @@
 import time
 import pickle
 import os
+from tqdm import tqdm
 import torch as th
 import torch.nn.functional as F
 from numba import njit
@@ -105,7 +106,7 @@ class MTRCPO:
     def learn(self):
         st_time = time.time()
         all_epoch_cost = 0
-        for epoch in range(self.n_epoch):
+        for epoch in tqdm(range(self.n_epoch)):
             st1 = time.time()
             sub_task_list = self.task_sche.random_subset(self.task_per_epoch)
 
