@@ -28,12 +28,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    train_envs = DummyVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
-    )
-    # train_envs = SubprocVectorEnv(
+    # train_envs = DummyVectorEnv(
     #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     # )
+    train_envs = SubprocVectorEnv(
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+    )
     task_sche = TaskScheduler()
 
     # seed
@@ -70,7 +70,7 @@ def main(args):
 
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
     critic_optim = Adam(list(critic.parameters())+list(cost_critic.parameters()), lr=args.lr_critic)
-    penalty_optim = Adam(penalty, lr=args.lr_penalty)
+    penalty_optim = Adam([penalty], lr=args.lr_penalty)
 
     agent = MTRCPO(
         env=train_envs,
@@ -84,12 +84,13 @@ def main(args):
         actor_optim=actor_optim,
         critic_optim=critic_optim,
         penalty_optim=penalty_optim,
-        dist=dist,
+        dist_fn=dist,
         writer=writer,
         device=args.device,
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
         episode_per_task=args.episode_per_task,
+        task_per_epoch=args.task_per_epoch,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -112,6 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_encoder', type=int, default=10)
     parser.add_argument('--n_epoch', type=int, default=1000)
     parser.add_argument('--episode_per_task', type=int, default=10)
+    parser.add_argument('--task_per_epoch', type=int, default=10)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)

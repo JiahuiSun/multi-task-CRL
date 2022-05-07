@@ -31,7 +31,7 @@ class BaseNet(nn.Module):
         self.output_dim = 256
     
     def forward(self, obs, taskid):
-        state_embs = th.cat([state_encoder(obs) for state_encoder in self.state_encoder_list], dim=0)  # KBF
+        state_embs = th.stack([state_encoder(obs) for state_encoder in self.state_encoder_list], dim=0)  # KBF
         state_embs = state_embs.permute(1, 0, 2)  # BKF
         task_emb = self.task_encoder(taskid)  # BF
         task_emb_nograd = task_emb.detach()

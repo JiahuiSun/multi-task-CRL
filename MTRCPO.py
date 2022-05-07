@@ -42,13 +42,14 @@ class MTRCPO:
         actor_optim,
         critic_optim,
         penalty_optim,
-        dist,
+        dist_fn,
         save_freq=10,
         writer=None,
         device='cpu',
         # 接下来的参数可调
         n_epoch=1000,
         episode_per_task=10,
+        task_per_epoch=10,
         value_clip=False,
         clip=0.2,
         repeat_per_collect=10,
@@ -74,10 +75,11 @@ class MTRCPO:
         self.actor_optim = actor_optim
         self.critic_optim = critic_optim
         self.penalty_optim = penalty_optim
-        self.dist = dist
+        self.dist_fn = dist_fn
 
         self.n_epoch = n_epoch
         self.episode_per_task = episode_per_task
+        self.task_per_epoch = task_per_epoch
         self.value_clip = value_clip
         self.clip = clip
         self.repeat_per_collect = repeat_per_collect
@@ -98,13 +100,14 @@ class MTRCPO:
         self.log_dir = writer.log_dir
         self.nproc = len(env)
         self.step_per_episode = 1000
+        self.step_per_task = self.step_per_episode * self.episode_per_task
  
     def learn(self):
         st_time = time.time()
         all_epoch_cost = 0
         for epoch in range(self.n_epoch):
             st1 = time.time()
-            sub_task_list = self.task_sche.subset()
+            sub_task_list = self.task_sche.random_subset(self.task_per_epoch)
 
             buffer = self.rollout(sub_task_list=sub_task_list)
             st2 = time.time()
@@ -234,20 +237,20 @@ class MTRCPO:
             for param in sub_task_list
         }
 
-        def track_reset(): 
+        def track_reset(step_per_task): 
             nproc_track = {
-                'obs': np.zeros((self.step_per_episode, self.nproc, self.state_dim), dtype=np.float32),
-                'act': np.zeros((self.step_per_episode, self.nproc, self.act_dim), dtype=np.float32),
-                'log_prob': np.zeros((self.step_per_episode, self.nproc), dtype=np.float32),
-                'rew': np.zeros((self.step_per_episode, self.nproc), dtype=np.float32),
-                'cost': np.zeros((self.step_per_episode, self.nproc), dtype=np.float32),
-                'done': np.zeros((self.step_per_episode, self.nproc), dtype=np.float32),
-                'obs_next': np.zeros((self.step_per_episode, self.nproc), dtype=np.float32)
+                'obs': np.zeros((step_per_task, self.nproc, self.state_dim), dtype=np.float32),
+                'act': np.zeros((step_per_task, self.nproc, self.act_dim), dtype=np.float32),
+                'log_prob': np.zeros((step_per_task, self.nproc), dtype=np.float32),
+                'rew': np.zeros((step_per_task, self.nproc), dtype=np.float32),
+                'cost': np.zeros((step_per_task, self.nproc), dtype=np.float32),
+                'done': np.zeros((step_per_task, self.nproc), dtype=np.float32),
+                'obs_next': np.zeros((step_per_task, self.nproc, self.state_dim), dtype=np.float32)
             }
             return nproc_track
 
         sub_task_list = CircularList(sub_task_list)
-        nproc_track = track_reset()
+        nproc_track = track_reset(self.step_per_task)
         env_idx_param = [sub_task_list.pop() for _ in range(self.nproc)]
         obs = self.env.reset()
         tstep = 0
@@ -260,7 +263,7 @@ class MTRCPO:
             for idx, info in enumerate(infos):
                 param = env_idx_param[idx]
                 reward = info['reward_distance']*param[0] + info['reward_goal']*param[1]
-                cost = info['cost_pillars']*param[2] + info['cost_buttons']*param[3] + info['cost_gremlins']*param[4]
+                cost = info['cost_buttons']*param[2] + info['cost_gremlins']*param[3] + info['cost_hazards']*param[4]
                 rewards[idx] = reward
                 costs[idx] = cost
 
@@ -271,22 +274,22 @@ class MTRCPO:
             nproc_track['cost'][tstep] = costs
             nproc_track['done'][tstep] = dones
             nproc_track['obs_next'][tstep] = obs_next
-
+            tstep += 1
             sub_task_list.record(env_idx_param)
 
-            terminal = any(dones) or (tstep >= self.step_per_episode * self.episode_per_task)
+            terminal = any(dones) or (tstep >= self.step_per_task)
             if terminal:
                 # 如果够了10000步，则每个赛道都要换下一组任务了
-                if tstep >= self.step_per_episode * self.episode_per_task:
+                if tstep >= self.step_per_task:
                     tstep = 0
                     # 把现有积累的数据给buffer，然后赛道重启
                     for k, data in nproc_track.items():
                         for idx in range(self.nproc):
                             param = env_idx_param[idx]
                             buffer[tuple(param)][k].append(data[:, idx])
-                    nproc_track = track_reset()
+                    nproc_track = track_reset(self.step_per_task)
                     # 如果所有人都够了10000步，就break
-                    if sub_task_list.is_finish(self.step_per_episode*self.episode_per_task):
+                    if sub_task_list.is_finish(self.step_per_task):
                         break
                     # 如果还有人没够，就循环访问下一组任务
                     env_idx_param = [sub_task_list.pop() for _ in range(self.nproc)]
@@ -303,6 +306,8 @@ class MTRCPO:
             data['avg_cumu_rew'] = np.sum(data['rew']) / (self.episode_per_task*len(data['rew']))
             data['avg_cumu_cost'] = np.sum(data['cost']) / (self.episode_per_task*len(data['rew']))
             for k, trans in data.items():
+                if k in ['avg_cumu_rew', 'avg_cumu_cost']:
+                    continue
                 data[k] = np.concatenate(trans, axis=0)
             
         return buffer
