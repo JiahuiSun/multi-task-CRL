@@ -28,12 +28,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    train_envs = DummyVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
-    )
-    # train_envs = SubprocVectorEnv(
+    # train_envs = DummyVectorEnv(
     #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     # )
+    train_envs = SubprocVectorEnv(
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+    )
 
     # seed
     np.random.seed(args.seed)
