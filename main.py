@@ -100,17 +100,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=2)
+    parser.add_argument('--nproc', type=int, default=5)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
-    parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--penalty_init', type=float, default=1)
     parser.add_argument('--cost_lim', type=float, default=20)
 
     parser.add_argument('--n_epoch', type=int, default=300)
-    parser.add_argument('--episode_per_proc', type=int, default=1)
+    parser.add_argument('--episode_per_proc', type=int, default=2)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)
