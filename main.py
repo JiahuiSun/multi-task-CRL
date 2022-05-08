@@ -32,7 +32,7 @@ def main(args):
     #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     # )
     train_envs = SubprocVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=False
     )
 
     # seed
