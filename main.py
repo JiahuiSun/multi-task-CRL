@@ -89,6 +89,7 @@ def main(args):
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
         episode_per_proc=args.episode_per_proc,
+        repeat_per_collect=args.repeat_per_collect,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -100,7 +101,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=5)
+    parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
@@ -109,7 +110,8 @@ if __name__ == '__main__':
     parser.add_argument('--cost_lim', type=float, default=20)
 
     parser.add_argument('--n_epoch', type=int, default=300)
-    parser.add_argument('--episode_per_proc', type=int, default=2)
+    parser.add_argument('--episode_per_proc', type=int, default=3)
+    parser.add_argument('--repeat_per_collect', type=int, default=80)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)

@@ -109,7 +109,7 @@ class MTRCPO:
 
             # training
             buffer = self.compute_gae(buffer)
-            penalty = F.relu(self.penalty.detach())
+            penalty = F.softplus(self.penalty.detach())
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
                     buffer = self.compute_gae(buffer)
