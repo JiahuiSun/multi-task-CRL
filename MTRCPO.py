@@ -27,6 +27,17 @@ def _gae_return(
     return returns
 
 
+@njit
+def _discount_cumsum(rew, end_flag, gamma):
+    returns = np.zeros(rew.shape)
+    m = (1.0 - end_flag) * gamma
+    gae = 0.0
+    for i in range(len(rew) - 1, -1, -1):
+        gae = rew[i] + m[i] * gae
+        returns[i] = gae
+    return returns
+
+
 class MTRCPO:
     def __init__(
         self,
@@ -274,8 +285,11 @@ class MTRCPO:
         cost_adv_numpy = _gae_return(
             cost_vs_numpy, cost_vs_next_numpy, buffer['cost'], buffer['done'], self.cost_gamma, self.cost_lam
         )
-        target = adv_numpy + vs_numpy
-        cost_target = cost_adv_numpy + cost_vs_numpy
+        
+        target = _discount_cumsum(buffer['rew'], buffer['done'], self.gamma)
+        cost_target = _discount_cumsum(buffer['cost'], buffer['done'], self.cost_gamma)
+        # target = adv_numpy + vs_numpy
+        # cost_target = cost_adv_numpy + cost_vs_numpy
         buffer['vs'] = vs_numpy
         buffer['cost_vs'] = cost_vs_numpy
         buffer['adv'] = adv_numpy
@@ -313,3 +327,14 @@ class MTRCPO:
             dist = self.dist_fn(mu, sigma)
             log_probs = dist.log_prob(batch_acts)
         return vs, cost_vs, log_probs
+
+
+if __name__ == '__main__':
+    import scipy.signal
+    rew = np.ones(100)
+    done = np.zeros(100)
+    done[-1] = 1
+    discount = 0.9
+    a = scipy.signal.lfilter([1], [1, float(-discount)], rew[::-1], axis=0)[::-1]
+    b = _discount_cumsum(rew, done, discount)
+    print(a==b)
