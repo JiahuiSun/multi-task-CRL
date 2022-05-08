@@ -20,7 +20,7 @@ def main(args):
     # logger
     t0 = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = f'seed_{args.seed}_{t0}'
-    log_dir = os.path.join(args.log_dir, args.task, 'MTRCPO', log_file)
+    log_dir = os.path.join(args.log_dir, args.task, 'PPO_lagrangian', log_file)
     writer = SummaryWriter(log_dir)
     writer.add_text('args', f"{args}")
 
@@ -28,13 +28,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    # train_envs = DummyVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
-    # )
-    train_envs = SubprocVectorEnv(
+    train_envs = DummyVectorEnv(
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
     )
-    task_sche = TaskScheduler()
+    # train_envs = SubprocVectorEnv(
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+    # )
 
     # seed
     np.random.seed(args.seed)
@@ -42,9 +41,9 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty and their optimizers
-    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
-    base_r = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
-    base_c = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_a = BaseNet(state_shape).to(args.device)
+    base_r = BaseNet(state_shape).to(args.device)
+    base_c = BaseNet(state_shape).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
@@ -74,7 +73,7 @@ def main(args):
 
     agent = MTRCPO(
         env=train_envs,
-        task_sche=task_sche,
+        cost_lim=args.cost_lim,
         state_shape=state_shape,
         action_shape=action_shape,
         actor=actor,
@@ -110,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument('--penalty_init', type=float, default=1)
     parser.add_argument('--cost_lim', type=float, default=20)
 
-    parser.add_argument('--n_epoch', type=int, default=1000)
+    parser.add_argument('--n_epoch', type=int, default=300)
     parser.add_argument('--episode_per_proc', type=int, default=1)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)

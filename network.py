@@ -8,7 +8,6 @@ class BaseNet(nn.Module):
     def __init__(
         self,
         state_shape,
-        taskid_dim,
         hidden_dim=256
     ) -> None:
         super().__init__()
@@ -21,7 +20,7 @@ class BaseNet(nn.Module):
         )
         self.output_dim = hidden_dim
     
-    def forward(self, obs, taskid):
+    def forward(self, obs):
         logits = self.fc(obs)
         return logits
 
@@ -39,9 +38,9 @@ class Actor(nn.Module):
         self.mu = nn.Linear(input_dim, self.output_dim)
         self.sigma_param = nn.Parameter(th.zeros(self.output_dim, 1))
     
-    def forward(self, obs, taskid):
-        state_task_emb = self.base_net(obs, taskid)
-        mu = self.mu(state_task_emb)
+    def forward(self, obs):
+        logits = self.base_net(obs)
+        mu = self.mu(logits)
         shape = [1] * len(mu.shape)
         shape[1] = -1
         sigma = (self.sigma_param.view(shape) + th.zeros_like(mu)).exp()
@@ -58,9 +57,9 @@ class Critic(nn.Module):
         input_dim = getattr(base_net, "output_dim")
         self.last = nn.Linear(input_dim, 1)
 
-    def forward(self, obs, taskid):
-        state_task_emb = self.base_net(obs, taskid)
-        logits = self.last(state_task_emb)
+    def forward(self, obs):
+        logits = self.base_net(obs)
+        logits = self.last(logits)
         return logits
 
 
