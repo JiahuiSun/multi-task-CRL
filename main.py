@@ -28,10 +28,10 @@ def main(args):
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
     # train_envs = DummyVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     # )
     train_envs = SubprocVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=False
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
 
     # seed
@@ -53,11 +53,11 @@ def main(args):
         return Independent(Normal(*logits), 1)
 
     th.nn.init.constant_(actor.sigma_param, -0.5)
-    # for m in list(actor.modules()) + list(critic.modules()):
-    #     if isinstance(m, th.nn.Linear):
-    #         # orthogonal initialization
-    #         th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
-    #         th.nn.init.zeros_(m.bias)
+    for m in list(actor.modules()) + list(critic.modules()):
+        if isinstance(m, th.nn.Linear):
+            # orthogonal initialization
+            th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
+            th.nn.init.zeros_(m.bias)
     # # do last policy layer scaling, this will make initial actions have (close to)
     # # 0 mean and std, and will help boost performances,
     # # see https://arxiv.org/abs/2006.05990, Fig.24 for details
@@ -89,6 +89,7 @@ def main(args):
         n_epoch=args.n_epoch,
         episode_per_proc=args.episode_per_proc,
         repeat_per_collect=args.repeat_per_collect,
+        kl_stop=args.kl_stop,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -98,7 +99,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
-    parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
+    parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--log_dir', type=str, default='output')
@@ -106,7 +107,9 @@ if __name__ == '__main__':
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--penalty_init', type=float, default=1)
-    parser.add_argument('--cost_lim', type=float, default=20)
+    parser.add_argument('--cost_lim', type=float, default=25)
+    parser.add_argument('--norm_obs', action='store_true')
+    parser.add_argument('--kl_stop', action='store_true')
 
     parser.add_argument('--n_epoch', type=int, default=300)
     parser.add_argument('--episode_per_proc', type=int, default=3)

@@ -69,6 +69,7 @@ class MTRCPO:
         episode_per_proc=10,
         value_clip=False,
         clip=0.2,
+        kl_stop=False,
         kl_margin=1.2,
         target_kl=0.01,
         repeat_per_collect=10,
@@ -100,6 +101,7 @@ class MTRCPO:
         self.episode_per_proc = episode_per_proc
         self.value_clip = value_clip
         self.clip = clip
+        self.kl_stop = kl_stop
         self.kl_margin = kl_margin
         self.target_kl = target_kl
         self.repeat_per_collect = repeat_per_collect
@@ -195,7 +197,7 @@ class MTRCPO:
                     self.actor_optim.step()
 
                     d_kl = gaussian_kl(mu, sigma, buffer['mu'], buffer['sigma'])
-                    if d_kl > self.kl_margin * self.target_kl:
+                    if self.kl_stop and d_kl > self.kl_margin * self.target_kl:
                         policy_update_flag = 0
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
 
