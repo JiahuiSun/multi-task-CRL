@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
-from network import BaseNet, Actor, Critic, Penalty
+from network import BaseNet, Actor, Critic
 from MTRCPO import MTRCPO
 from task_scheduler import TaskScheduler
 
@@ -29,10 +29,10 @@ def main(args):
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
     # train_envs = DummyVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     # )
     train_envs = SubprocVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=True
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
     task_sche = TaskScheduler()
 
@@ -55,18 +55,19 @@ def main(args):
         return Independent(Normal(*logits), 1)
 
     th.nn.init.constant_(actor.sigma_param, -0.5)
-    for m in list(actor.modules()) + list(critic.modules()):
-        if isinstance(m, th.nn.Linear):
-            # orthogonal initialization
-            th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
-            th.nn.init.zeros_(m.bias)
-    # do last policy layer scaling, this will make initial actions have (close to)
-    # 0 mean and std, and will help boost performances,
-    # see https://arxiv.org/abs/2006.05990, Fig.24 for details
-    for m in actor.mu.modules():
-        if isinstance(m, th.nn.Linear):
-            th.nn.init.zeros_(m.bias)
-            m.weight.data.copy_(0.01 * m.weight.data)
+    if args.param_init:
+        for m in list(actor.modules()) + list(critic.modules()) + list(cost_critic.modules()):
+            if isinstance(m, th.nn.Linear):
+                # orthogonal initialization
+                th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
+                th.nn.init.zeros_(m.bias)
+        # do last policy layer scaling, this will make initial actions have (close to)
+        # 0 mean and std, and will help boost performances,
+        # see https://arxiv.org/abs/2006.05990, Fig.24 for details
+        for m in actor.mu.modules():
+            if isinstance(m, th.nn.Linear):
+                th.nn.init.zeros_(m.bias)
+                m.weight.data.copy_(0.01 * m.weight.data)
 
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
     critic_optim = Adam(list(critic.parameters())+list(cost_critic.parameters()), lr=args.lr_critic)
@@ -90,6 +91,8 @@ def main(args):
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
         episode_per_proc=args.episode_per_proc,
+        repeat_per_collect=args.repeat_per_collect,
+        kl_stop=args.kl_stop,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -108,10 +111,13 @@ if __name__ == '__main__':
     )
     parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--penalty_init', type=float, default=1)
-
+    parser.add_argument('--norm_obs', action='store_true')
+    parser.add_argument('--kl_stop', action='store_false')
+    parser.add_argument('--param_init', action='store_true')
     parser.add_argument('--n_encoder', type=int, default=10)
     parser.add_argument('--n_epoch', type=int, default=1000)
     parser.add_argument('--episode_per_proc', type=int, default=1)
+    parser.add_argument('--repeat_per_collect', type=int, default=20)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)
