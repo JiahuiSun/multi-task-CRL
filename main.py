@@ -39,7 +39,7 @@ def main(args):
     th.manual_seed(args.seed)
     train_envs.seed(args.seed)
 
-    # actor, critic, cost_critic, penalty and their optimizers
+    # actor, critic, cost_critic, penalty
     base_a = BaseNet(state_shape).to(args.device)
     base_r = BaseNet(state_shape).to(args.device)
     base_c = BaseNet(state_shape).to(args.device)
@@ -52,8 +52,9 @@ def main(args):
     def dist(*logits):
         return Independent(Normal(*logits), 1)
 
+    # Parameter initialization for actor, critic, cost_critic
     th.nn.init.constant_(actor.sigma_param, -0.5)
-    for m in list(actor.modules()) + list(critic.modules()):
+    for m in list(actor.modules()) + list(critic.modules()) + list(cost_critic.modules()):
         if isinstance(m, th.nn.Linear):
             # orthogonal initialization
             th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
@@ -66,6 +67,7 @@ def main(args):
     #         th.nn.init.zeros_(m.bias)
     #         m.weight.data.copy_(0.01 * m.weight.data)
 
+    # optimizers for actor, critic, cost_critic
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
     critic_optim = Adam(list(critic.parameters())+list(cost_critic.parameters()), lr=args.lr_critic)
     penalty_optim = Adam([penalty], lr=args.lr_penalty)

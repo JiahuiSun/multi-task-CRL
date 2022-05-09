@@ -211,7 +211,6 @@ class MTRCPO:
             end_time = time.time()
             all_epoch_cost += buffer['avg_cumu_cost']
             cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
-
             self.writer.add_scalar('param/threshold', self.cost_lim, epoch)
             self.writer.add_scalar('param/penalty', penalty, epoch)
             self.writer.add_scalar('metric/avg_cumu_rew', buffer['avg_cumu_rew'], epoch)
@@ -223,6 +222,7 @@ class MTRCPO:
             self.writer.add_scalar('time/training', end_time-st2, epoch)
             self.writer.add_scalar('time/elapsed', time.time()-st_time, epoch)
             
+            # save everything
             if (epoch+1) % self.save_freq == 0:
                 actor_path = os.path.join(self.log_dir, f'actor-{epoch}.pth')
                 critic_path = os.path.join(self.log_dir, f'critic-{epoch}.pth')
