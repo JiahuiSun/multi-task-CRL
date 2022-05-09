@@ -54,18 +54,19 @@ def main(args):
 
     # Parameter initialization for actor, critic, cost_critic
     th.nn.init.constant_(actor.sigma_param, -0.5)
-    for m in list(actor.modules()) + list(critic.modules()) + list(cost_critic.modules()):
-        if isinstance(m, th.nn.Linear):
-            # orthogonal initialization
-            th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
-            th.nn.init.zeros_(m.bias)
-    # # do last policy layer scaling, this will make initial actions have (close to)
-    # # 0 mean and std, and will help boost performances,
-    # # see https://arxiv.org/abs/2006.05990, Fig.24 for details
-    # for m in actor.mu.modules():
-    #     if isinstance(m, th.nn.Linear):
-    #         th.nn.init.zeros_(m.bias)
-    #         m.weight.data.copy_(0.01 * m.weight.data)
+    if args.param_init:
+        for m in list(actor.modules()) + list(critic.modules()) + list(cost_critic.modules()):
+            if isinstance(m, th.nn.Linear):
+                # orthogonal initialization
+                th.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
+                th.nn.init.zeros_(m.bias)
+        # do last policy layer scaling, this will make initial actions have (close to)
+        # 0 mean and std, and will help boost performances,
+        # see https://arxiv.org/abs/2006.05990, Fig.24 for details
+        for m in actor.mu.modules():
+            if isinstance(m, th.nn.Linear):
+                th.nn.init.zeros_(m.bias)
+                m.weight.data.copy_(0.01 * m.weight.data)
 
     # optimizers for actor, critic, cost_critic
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
@@ -112,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--cost_lim', type=float, default=25)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--kl_stop', action='store_true')
-
+    parser.add_argument('--param_init', action='store_true')
     parser.add_argument('--n_epoch', type=int, default=300)
     parser.add_argument('--episode_per_proc', type=int, default=3)
     parser.add_argument('--repeat_per_collect', type=int, default=80)
