@@ -11,9 +11,8 @@ from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
-from network import BaseNet, Actor, Critic, Penalty
+from network import BaseNet, Actor, Critic
 from MTRCPO import MTRCPO
-from task_scheduler import TaskScheduler
 
 
 def main(args):

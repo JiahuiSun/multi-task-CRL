@@ -38,6 +38,14 @@ def _discount_cumsum(rew, end_flag, gamma):
     return returns
 
 
+def gaussian_kl(mu0, log_std0, mu1, log_std1):
+    """Returns average kl divergence between two batches of dists"""
+    var0, var1 = np.exp(2 * log_std0), np.exp(2 * log_std1)
+    pre_sum = 0.5*(((mu1 - mu0)**2 + var0)/(var1 + 1e-8) - 1) + log_std1 - log_std0
+    all_kls = np.sum(pre_sum, axis=1)
+    return np.mean(all_kls)
+
+
 class MTRCPO:
     def __init__(
         self,
@@ -61,6 +69,8 @@ class MTRCPO:
         episode_per_proc=10,
         value_clip=False,
         clip=0.2,
+        kl_margin=1.2,
+        target_kl=0.01,
         repeat_per_collect=10,
         lr_actor=3e-4,
         lr_critic=1e-3,
@@ -90,6 +100,8 @@ class MTRCPO:
         self.episode_per_proc = episode_per_proc
         self.value_clip = value_clip
         self.clip = clip
+        self.kl_margin = kl_margin
+        self.target_kl = target_kl
         self.repeat_per_collect = repeat_per_collect
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
@@ -121,12 +133,13 @@ class MTRCPO:
             # training
             buffer = self.compute_gae(buffer)
             penalty = F.softplus(self.penalty.detach())
+            policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
                     buffer = self.compute_gae(buffer)
 
                 # Calculate loss for critic
-                value, cost_value, curr_log_probs = self.evaluate(buffer['obs'], buffer['act'])
+                value, cost_value, curr_log_probs, mu, sigma = self.evaluate(buffer['obs'], buffer['act'])
                 target = th.tensor(buffer['target'], dtype=th.float32, device=self.device)
                 cost_target = th.tensor(buffer['cost_target'], dtype=th.float32, device=self.device)
                 # NOTE: 只有不recompute adv时，value clip才有意义
@@ -145,33 +158,8 @@ class MTRCPO:
                 else:
                     critic_loss = (target - value).pow(2).mean()
                     cost_critic_loss = (cost_target - cost_value).pow(2).mean()
+
                 total_critic_loss = critic_loss + cost_critic_loss
-
-                # Calculate loss for actor
-                adv = th.tensor(buffer['adv'], dtype=th.float32, device=self.device)
-                cost_adv = th.tensor(buffer['cost_adv'], dtype=th.float32, device=self.device)
-                # NOTE: 不管是否recompute adv，old_log_probs都不变，都是原来执行时产生的值
-                old_log_probs = th.tensor(buffer['log_prob'], dtype=th.float32, device=self.device)
-                if self.norm_adv:
-                    adv = (adv - adv.mean()) / adv.std()
-                ratios = th.exp(curr_log_probs - old_log_probs)
-                surr1 = ratios * adv
-                surr2 = th.clamp(ratios, 1 - self.clip, 1 + self.clip) * adv
-                surr_rew_loss = -th.min(surr1, surr2).mean()
-                surr_cost_loss = -(ratios * cost_adv).mean()
-                total_actor_loss = surr_rew_loss - penalty * surr_cost_loss
-                # why?
-                total_actor_loss /= (1 + penalty)
-                
-                self.actor_optim.zero_grad()
-                total_actor_loss.backward()
-                if self.max_grad_norm:  # clip large gradient
-                    th.nn.utils.clip_grad_norm_(
-                        self.actor.parameters(), 
-                        max_norm=self.max_grad_norm
-                    )
-                self.actor_optim.step()
-
                 self.critic_optim.zero_grad()
                 total_critic_loss.backward()
                 if self.max_grad_norm:  # clip large gradient
@@ -180,6 +168,36 @@ class MTRCPO:
                         max_norm=self.max_grad_norm
                     )
                 self.critic_optim.step()
+
+                # Calculate loss for actor
+                if policy_update_flag:
+                    adv = th.tensor(buffer['adv'], dtype=th.float32, device=self.device)
+                    cost_adv = th.tensor(buffer['cost_adv'], dtype=th.float32, device=self.device)
+                    # NOTE: 不管是否recompute adv，old_log_probs都不变，都是原来执行时产生的值
+                    old_log_probs = th.tensor(buffer['log_prob'], dtype=th.float32, device=self.device)
+                    if self.norm_adv:
+                        adv = (adv - adv.mean()) / adv.std()
+                    ratios = th.exp(curr_log_probs - old_log_probs)
+                    surr1 = ratios * adv
+                    surr2 = th.clamp(ratios, 1 - self.clip, 1 + self.clip) * adv
+                    surr_rew_loss = -th.min(surr1, surr2).mean()
+                    surr_cost_loss = -(ratios * cost_adv).mean()
+
+                    total_actor_loss = surr_rew_loss - penalty * surr_cost_loss
+                    total_actor_loss /= (1 + penalty)  # why?
+                    self.actor_optim.zero_grad()
+                    total_actor_loss.backward()
+                    if self.max_grad_norm:  # clip large gradient
+                        th.nn.utils.clip_grad_norm_(
+                            self.actor.parameters(), 
+                            max_norm=self.max_grad_norm
+                        )
+                    self.actor_optim.step()
+
+                    d_kl = gaussian_kl(mu, sigma, buffer['mu'], buffer['sigma'])
+                    if d_kl > self.kl_margin * self.target_kl:
+                        policy_update_flag = 0
+                        print(f'Early stopping at step {repeat} due to reaching max kl.')
 
             # update penalty
             penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - self.cost_lim)
@@ -226,6 +244,8 @@ class MTRCPO:
         buffer = {
             'obs': np.zeros((self.step_per_proc, self.nproc, self.state_dim), dtype=np.float32),  # T x N x D
             'act': np.zeros((self.step_per_proc, self.nproc, self.act_dim), dtype=np.float32),
+            'mu': np.zeros((self.step_per_proc, self.nproc, self.act_dim), dtype=np.float32),
+            'sigma': np.zeros((self.step_per_proc, self.nproc, self.act_dim), dtype=np.float32),
             'log_prob': np.zeros((self.step_per_proc, self.nproc), dtype=np.float32),
             'rew': np.zeros((self.step_per_proc, self.nproc), dtype=np.float32),
             'cost': np.zeros((self.step_per_proc, self.nproc), dtype=np.float32),
@@ -236,13 +256,15 @@ class MTRCPO:
         obs = self.env.reset()
         tstep = 0
         while True:
-            actions, log_probs = self.get_action(obs)
+            actions, log_probs, mu, sigma = self.get_action(obs)
             mapped_actions = self.map_action(actions)
             obs_next, rewards, dones, infos = self.env.step(mapped_actions)
             costs = np.array([info['cost'] for info in infos])
 
             buffer['obs'][tstep] = obs
             buffer['act'][tstep] = actions
+            buffer['mu'][tstep] = mu
+            buffer['sigma'][tstep] = sigma
             buffer['log_prob'][tstep] = log_probs
             buffer['rew'][tstep] = rewards
             buffer['cost'][tstep] = costs
@@ -275,8 +297,8 @@ class MTRCPO:
         数据预处理，计算vs, cost_vs，adv, cost_adv，target, cost_target，不带梯度
         """
         with th.no_grad():
-            vs, cost_vs, _ = self.evaluate(buffer['obs'])
-            vs_next, cost_vs_next, _ = self.evaluate(buffer['obs_next'])
+            vs, cost_vs, _, _, _ = self.evaluate(buffer['obs'])
+            vs_next, cost_vs_next, _, _, _ = self.evaluate(buffer['obs_next'])
         vs_numpy, vs_next_numpy = vs.cpu().numpy(), vs_next.cpu().numpy()
         cost_vs_numpy, cost_vs_next_numpy = cost_vs.cpu().numpy(), cost_vs_next.cpu().numpy()
         adv_numpy = _gae_return(
@@ -309,7 +331,7 @@ class MTRCPO:
             dist = self.dist_fn(mu, sigma)
             action = dist.sample()
             log_prob = dist.log_prob(action)
-        return action.cpu().numpy(), log_prob.cpu().numpy()
+        return action.cpu().numpy(), log_prob.cpu().numpy(), mu.cpu().numpy(), sigma.cpu().numpy()
 
     def map_action(self, act):
         act = np.clip(act, -1.0, 1.0)
@@ -319,14 +341,16 @@ class MTRCPO:
         batch_obs = th.tensor(batch_obs, dtype=th.float32, device=self.device)
         vs = self.critic(batch_obs).squeeze()
         cost_vs = self.cost_critic(batch_obs).squeeze()
-        log_probs = None
+        log_probs, mu, sigma = None, None, None
         if batch_acts is not None:
             if isinstance(batch_acts, np.ndarray):
                 batch_acts = th.tensor(batch_acts, dtype=th.float32, device=self.device)
             mu, sigma = self.actor(batch_obs)
             dist = self.dist_fn(mu, sigma)
             log_probs = dist.log_prob(batch_acts)
-        return vs, cost_vs, log_probs
+            mu = mu.detach().cpu().numpy()
+            sigma = sigma.detach().cpu().numpy()
+        return vs, cost_vs, log_probs, mu, sigma
 
 
 if __name__ == '__main__':
