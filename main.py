@@ -104,7 +104,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=14)
+    parser.add_argument('--nproc', type=int, default=21)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
