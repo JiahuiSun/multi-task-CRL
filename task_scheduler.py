@@ -8,14 +8,10 @@ class TaskScheduler:
     """
     def __init__(self, epoch_per_threshold=100):
         self.epoch_per_threshold = epoch_per_threshold
-        self.wr_list = [[0.2, 1.8], [0.5, 1.5], [1, 1], [1.5, 0.5], [1.8, 0.2]]
-        self.wc_list = [[0.5, 1, 1.5], [0.5, 1.5, 1], [1, 0.5, 1.5], [1, 1.5, 0.5], [1.5, 0.5, 1], [1.5, 1, 0.5], [1, 1, 1]]
-        self.threshold_list = [15, 20, 25, 30]
-        self.task_list = []
-        for task in list(itertools.product(self.wr_list, self.wc_list, self.threshold_list)):
-            self.task_list.append(task[0]+task[1]+[task[2]])
-        self.low = np.array([[0, 0, 0, 0, 0, 15]])
-        self.high = np.array([[2, 2, 3, 3, 3, 30]])
+        self.threshold_list = np.arange(0, 101, 2)
+        int2binary = lambda x: [int(tmp) for tmp in format(x, 'b').zfill(6)]
+        self.task_list = [int2binary(x) for x in self.threshold_list]
+        self.binary2int = {tuple(int2binary(x)): x for x in self.threshold_list}
         self.t_idx = 0
         self.task = self.task_list[self.t_idx]
     
