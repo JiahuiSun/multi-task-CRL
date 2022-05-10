@@ -104,7 +104,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
-    parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
+    parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--log_dir', type=str, default='output')
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--kl_stop', action='store_false')
     parser.add_argument('--param_init', action='store_true')
-    parser.add_argument('--n_epoch', type=int, default=10200)
+    parser.add_argument('--n_epoch', type=int, default=6800)
     parser.add_argument('--episode_per_proc', type=int, default=1)
     parser.add_argument('--epoch_per_task', type=int, default=100, help='#epoch before switch to the next task')
     parser.add_argument('--repeat_per_collect', type=int, default=20)
