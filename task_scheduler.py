@@ -8,10 +8,10 @@ class TaskScheduler:
     """
     def __init__(self, epoch_per_threshold=100):
         self.epoch_per_threshold = epoch_per_threshold
-        self.threshold_list = np.arange(0, 101, 3)
-        int2binary = lambda x: [int(tmp) for tmp in format(x, 'b').zfill(6)]
-        self.task_list = [int2binary(x) for x in self.threshold_list]
-        self.binary2int = {tuple(int2binary(x)): x for x in self.threshold_list}
+        self.threshold_list = np.arange(5, 101, 5)
+        # int2binary = lambda x: [int(tmp) for tmp in format(x, 'b').zfill(6)]
+        self.task_list = np.eye(20).tolist()
+        self.binary2int = {tuple(self.task_list[i]): x for i, x in enumerate(self.threshold_list)}
         self.t_idx = 0
         self.task = self.task_list[self.t_idx]
     
