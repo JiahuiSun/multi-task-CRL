@@ -13,6 +13,7 @@ from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
 from network import BaseNet, Actor, Critic
 from MTRCPO import MTRCPO
+from task_scheduler import TaskScheduler
 
 
 def main(args):
@@ -33,6 +34,7 @@ def main(args):
     train_envs = SubprocVectorEnv(
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
+    task_sche = TaskScheduler(epoch_per_threshold=args.epoch_per_task)
 
     # seed
     np.random.seed(args.seed)
@@ -40,9 +42,9 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty
-    base_a = BaseNet(state_shape).to(args.device)
-    base_r = BaseNet(state_shape).to(args.device)
-    base_c = BaseNet(state_shape).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_r = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_c = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
@@ -75,7 +77,7 @@ def main(args):
 
     agent = MTRCPO(
         env=train_envs,
-        cost_lim=args.cost_lim,
+        task_sche=task_sche,
         state_shape=state_shape,
         action_shape=action_shape,
         actor=actor,
@@ -102,7 +104,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
-    parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
+    parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--log_dir', type=str, default='output')
@@ -110,13 +112,15 @@ if __name__ == '__main__':
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--penalty_init', type=float, default=1)
-    parser.add_argument('--cost_lim', type=float, default=25)
+    parser.add_argument('--n_encoder', type=int, default=10)
+    parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--norm_obs', action='store_true')
-    parser.add_argument('--kl_stop', action='store_true')
+    parser.add_argument('--kl_stop', action='store_false')
     parser.add_argument('--param_init', action='store_true')
-    parser.add_argument('--n_epoch', type=int, default=300)
-    parser.add_argument('--episode_per_proc', type=int, default=3)
-    parser.add_argument('--repeat_per_collect', type=int, default=80)
+    parser.add_argument('--n_epoch', type=int, default=28000)
+    parser.add_argument('--episode_per_proc', type=int, default=1)
+    parser.add_argument('--epoch_per_task', type=int, default=100, help='#epoch before switch to the next task')
+    parser.add_argument('--repeat_per_collect', type=int, default=20)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)

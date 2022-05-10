@@ -50,7 +50,7 @@ class MTRCPO:
     def __init__(
         self,
         env,
-        cost_lim,
+        task_sche,
         state_shape,
         action_shape,
         actor,
@@ -85,7 +85,7 @@ class MTRCPO:
         max_grad_norm=0.5
     ) -> None:
         self.env = env
-        self.cost_lim = cost_lim
+        self.task_sche = task_sche
         self.state_dim = np.prod(state_shape)
         self.act_dim = np.prod(action_shape)
         self.actor = actor
@@ -129,19 +129,20 @@ class MTRCPO:
         all_epoch_cost = 0
         for epoch in tqdm(range(self.n_epoch)):
             st1 = time.time()
-            buffer = self.rollout()
+            task = self.task_sche.update(epoch)
+            buffer = self.rollout(task)
             st2 = time.time()
 
             # training
-            buffer = self.compute_gae(buffer)
+            buffer = self.compute_gae(buffer, task)
             penalty = F.softplus(self.penalty.detach())
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
-                    buffer = self.compute_gae(buffer)
+                    buffer = self.compute_gae(buffer, task)
 
+                value, cost_value, curr_log_probs, mu, sigma = self.evaluate(buffer['obs'], np.array(task), buffer['act'])
                 # Calculate loss for critic
-                value, cost_value, curr_log_probs, mu, sigma = self.evaluate(buffer['obs'], buffer['act'])
                 target = th.tensor(buffer['target'], dtype=th.float32, device=self.device)
                 cost_target = th.tensor(buffer['cost_target'], dtype=th.float32, device=self.device)
                 # NOTE: 只有不recompute adv时，value clip才有意义
@@ -202,7 +203,7 @@ class MTRCPO:
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
 
             # update penalty
-            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - self.cost_lim)
+            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - task[-1])
             self.penalty_optim.zero_grad()
             penalty_loss.backward()
             self.penalty_optim.step()
@@ -211,7 +212,7 @@ class MTRCPO:
             end_time = time.time()
             all_epoch_cost += buffer['avg_cumu_cost']
             cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
-            self.writer.add_scalar('param/threshold', self.cost_lim, epoch)
+            self.writer.add_scalar('param/threshold', task[-1], epoch)
             self.writer.add_scalar('param/penalty', penalty, epoch)
             self.writer.add_scalar('metric/avg_cumu_rew', buffer['avg_cumu_rew'], epoch)
             self.writer.add_scalar('metric/avg_cumu_cost', buffer['avg_cumu_cost'], epoch)
@@ -237,7 +238,7 @@ class MTRCPO:
                     pickle.dump(self.env.obs_rms, f)
         self.env.close()
 
-    def rollout(self):
+    def rollout(self, task):
         """
         1. 共sample n_task x episode_per_task条episode，每条episode有1000个step；
             - 逻辑：nproc个task并行采样episode_per_task条episode，换下一批task
@@ -255,13 +256,20 @@ class MTRCPO:
             'obs_next': np.zeros((self.step_per_proc, self.nproc, self.state_dim), dtype=np.float32)
         }
 
+        env_idx_param = [task for _ in range(self.nproc)]
         obs = self.env.reset()
         tstep = 0
         while True:
-            actions, log_probs, mu, sigma = self.get_action(obs)
+            actions, log_probs, mu, sigma = self.get_action(obs, env_idx_param)
             mapped_actions = self.map_action(actions)
             obs_next, rewards, dones, infos = self.env.step(mapped_actions)
-            costs = np.array([info['cost'] for info in infos])
+            # 根据weight，自己计算reward和cost是多少
+            rewards, costs = np.zeros(self.nproc), np.zeros(self.nproc)
+            for idx, info in enumerate(infos):
+                reward = info['reward_distance']*task[0] + info['reward_goal']*task[1]
+                cost = info['cost_buttons']*task[2] + info['cost_gremlins']*task[3] + info['cost_hazards']*task[4]
+                rewards[idx] = reward
+                costs[idx] = cost
 
             buffer['obs'][tstep] = obs
             buffer['act'][tstep] = actions
@@ -294,13 +302,13 @@ class MTRCPO:
 
         return buffer
 
-    def compute_gae(self, buffer):
+    def compute_gae(self, buffer, task):
         """
         数据预处理，计算vs, cost_vs，adv, cost_adv，target, cost_target，不带梯度
         """
         with th.no_grad():
-            vs, cost_vs, _, _, _ = self.evaluate(buffer['obs'])
-            vs_next, cost_vs_next, _, _, _ = self.evaluate(buffer['obs_next'])
+            vs, cost_vs, _, _, _ = self.evaluate(buffer['obs'], np.array(task))
+            vs_next, cost_vs_next, _, _, _ = self.evaluate(buffer['obs_next'], np.array(task))
         vs_numpy, vs_next_numpy = vs.cpu().numpy(), vs_next.cpu().numpy()
         cost_vs_numpy, cost_vs_next_numpy = cost_vs.cpu().numpy(), cost_vs_next.cpu().numpy()
         adv_numpy = _gae_return(
@@ -322,32 +330,39 @@ class MTRCPO:
         buffer['cost_target'] = cost_target
         return buffer
 
-    def get_action(self, obs):
+    def get_action(self, obs, params):
         """
         obs: n_env x 60
         params: n_env x 6
         """
+        params = th.tensor(self.norm_params(np.array(params)), dtype=th.float32, device=self.device)
         obs = th.tensor(obs, dtype=th.float32, device=self.device)
         with th.no_grad():
-            mu, sigma = self.actor(obs)
+            mu, sigma = self.actor(obs, params)
             dist = self.dist_fn(mu, sigma)
             action = dist.sample()
             log_prob = dist.log_prob(action)
         return action.cpu().numpy(), log_prob.cpu().numpy(), mu.cpu().numpy(), sigma.cpu().numpy()
+    
+    def norm_params(self, params):
+        low, high = self.task_sche.low, self.task_sche.high
+        return (params - low) / (high - low)
 
     def map_action(self, act):
         act = np.clip(act, -1.0, 1.0)
         return act
 
-    def evaluate(self, batch_obs, batch_acts=None):
+    def evaluate(self, batch_obs, param, batch_acts=None):
+        batch_param = param.reshape(1, -1).repeat(batch_obs.shape[0], axis=0)
+        batch_param = th.tensor(self.norm_params(batch_param), dtype=th.float32, device=self.device)
         batch_obs = th.tensor(batch_obs, dtype=th.float32, device=self.device)
-        vs = self.critic(batch_obs).squeeze()
-        cost_vs = self.cost_critic(batch_obs).squeeze()
+        vs = self.critic(batch_obs, batch_param).squeeze()
+        cost_vs = self.cost_critic(batch_obs, batch_param).squeeze()
         log_probs, mu, sigma = None, None, None
         if batch_acts is not None:
             if isinstance(batch_acts, np.ndarray):
                 batch_acts = th.tensor(batch_acts, dtype=th.float32, device=self.device)
-            mu, sigma = self.actor(batch_obs)
+            mu, sigma = self.actor(batch_obs, batch_param)
             dist = self.dist_fn(mu, sigma)
             log_probs = dist.log_prob(batch_acts)
             mu = mu.detach().cpu().numpy()
