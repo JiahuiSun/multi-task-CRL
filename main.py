@@ -48,8 +48,7 @@ def main(args):
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
-    penalty_init = np.log(max(np.exp(args.penalty_init)-1, 1e-8))
-    penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32).to(args.device))
+    penalty = th.tensor(args.penalty_init, dtype=th.float32).to(args.device)
  
     def dist(*logits):
         return Independent(Normal(*logits), 1)
@@ -71,7 +70,6 @@ def main(args):
 
     actor_optim = Adam(actor.parameters(), lr=args.lr_actor)
     critic_optim = Adam(list(critic.parameters())+list(cost_critic.parameters()), lr=args.lr_critic)
-    penalty_optim = Adam([penalty], lr=args.lr_penalty)
 
     agent = MTRCPO(
         env=train_envs,
@@ -84,7 +82,6 @@ def main(args):
         penalty=penalty,
         actor_optim=actor_optim,
         critic_optim=critic_optim,
-        penalty_optim=penalty_optim,
         dist_fn=dist,
         writer=writer,
         device=args.device,
@@ -94,8 +91,7 @@ def main(args):
         repeat_per_collect=args.repeat_per_collect,
         kl_stop=args.kl_stop,
         lr_actor=args.lr_actor,
-        lr_critic=args.lr_critic,
-        lr_penalty=args.lr_penalty
+        lr_critic=args.lr_critic
     )
     agent.learn()
 
@@ -120,7 +116,6 @@ if __name__ == '__main__':
     parser.add_argument('--repeat_per_collect', type=int, default=20)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
-    parser.add_argument('--lr_penalty', type=float, default=5e-2)
     args = parser.parse_args()
 
     main(args)

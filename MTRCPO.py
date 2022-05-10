@@ -61,7 +61,6 @@ class MTRCPO:
         penalty,
         actor_optim,
         critic_optim,
-        penalty_optim,
         dist_fn,
         save_freq=10,
         writer=None,
@@ -77,7 +76,6 @@ class MTRCPO:
         repeat_per_collect=10,
         lr_actor=3e-4,
         lr_critic=1e-3,
-        lr_penalty=5e-2,
         gamma=0.99,
         lam=0.97,
         cost_gamma=0.99, 
@@ -96,7 +94,6 @@ class MTRCPO:
         self.penalty = penalty
         self.actor_optim = actor_optim
         self.critic_optim = critic_optim
-        self.penalty_optim = penalty_optim
         self.dist_fn = dist_fn
 
         self.n_epoch = n_epoch
@@ -109,7 +106,6 @@ class MTRCPO:
         self.repeat_per_collect = repeat_per_collect
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
-        self.lr_penalty = lr_penalty
         self.gamma = gamma
         self.lam = lam
         self.cost_gamma = cost_gamma
@@ -137,7 +133,11 @@ class MTRCPO:
 
             # training
             buffer = self.compute_gae(buffer)
-            penalty = F.softplus(self.penalty.detach())
+            # current penalty
+            avg_cumu_cost = np.mean([data['avg_cumu_cost'] for _, data in buffer.items()])
+            avg_threshold = np.mean([task[-1] for task in sub_task_list])
+            penalty = self.penalty * (avg_cumu_cost - avg_threshold)
+
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
@@ -211,14 +211,6 @@ class MTRCPO:
                     if self.kl_stop and all_task_kl > self.kl_margin * self.target_kl:
                         policy_update_flag = 0
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
-
-            # update penalty
-            avg_cumu_cost = np.mean([data['avg_cumu_cost'] for _, data in buffer.items()])
-            avg_threshold = np.mean([task[-1] for task in sub_task_list])
-            penalty_loss = -self.penalty * (avg_cumu_cost - avg_threshold)
-            self.penalty_optim.zero_grad()
-            penalty_loss.backward()
-            self.penalty_optim.step()
 
             # log everything
             end_time = time.time()
