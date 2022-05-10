@@ -131,7 +131,7 @@ class MTRCPO:
         all_epoch_cost = 0
         for epoch in tqdm(range(self.n_epoch)):
             st1 = time.time()
-            sub_task_list = self.task_sche.random_subset()
+            sub_task_list = self.task_sche.subset()
             buffer = self.rollout(sub_task_list=sub_task_list)
             st2 = time.time()
 
