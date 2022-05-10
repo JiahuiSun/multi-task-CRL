@@ -80,7 +80,7 @@ class MTRCPO:
         lam=0.97,
         cost_gamma=0.99, 
         cost_lam=0.97,
-        norm_adv=False,
+        norm_adv=True,
         recompute_adv=False,
         max_grad_norm=0.5
     ) -> None:
@@ -180,6 +180,7 @@ class MTRCPO:
                     old_log_probs = th.tensor(buffer['log_prob'], dtype=th.float32, device=self.device)
                     if self.norm_adv:
                         adv = (adv - adv.mean()) / adv.std()
+                        cost_adv = cost_adv - cost_adv.mean()
                     ratios = th.exp(curr_log_probs - old_log_probs)
                     surr1 = ratios * adv
                     surr2 = th.clamp(ratios, 1 - self.clip, 1 + self.clip) * adv
