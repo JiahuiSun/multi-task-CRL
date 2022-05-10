@@ -20,7 +20,7 @@ def main(args):
     # logger
     t0 = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = f'seed_{args.seed}_{t0}'
-    log_dir = os.path.join(args.log_dir, args.task, 'PPO_lagrangian', log_file)
+    log_dir = os.path.join(args.log_dir, args.task, 'RCPO-weight-as-input', log_file)
     writer = SummaryWriter(log_dir)
     writer.add_text('args', f"{args}")
 
