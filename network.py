@@ -15,8 +15,6 @@ class BaseNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(input_dim, 256),
             nn.Tanh(),
-            # nn.Linear(256, 256),
-            # nn.Tanh(),
             nn.Linear(256, 256),
             nn.Tanh()
         )
