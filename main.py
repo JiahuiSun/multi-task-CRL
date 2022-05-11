@@ -42,9 +42,9 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_r = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_c = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_r = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_c = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
