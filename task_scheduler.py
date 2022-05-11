@@ -6,9 +6,9 @@ class TaskScheduler:
     """
     输出：[[1, 1, 1, 1, 1, 25], [2, 0, 1, 2, 0, 30]]
     """
-    def __init__(self, epoch_per_threshold=100):
+    def __init__(self, epoch_per_threshold):
         self.epoch_per_threshold = epoch_per_threshold
-        self.wr_list = [[0.2, 1.8], [0.5, 1.5], [1, 1], [1.5, 0.5], [1.8, 0.2]]
+        self.wr_list = [[0.5, 1.5], [1, 1], [1.5, 0.5]]
         self.wc_list = [[0.5, 1, 1.5], [0.5, 1.5, 1], [1, 0.5, 1.5], [1, 1.5, 0.5], [1.5, 0.5, 1], [1.5, 1, 0.5], [1, 1, 1]]
         self.threshold_list = [15, 20, 25, 30]
         self.task_list = []
@@ -16,8 +16,7 @@ class TaskScheduler:
             self.task_list.append(task[0]+task[1]+[task[2]])
         self.low = np.array([[0, 0, 0, 0, 0, 15]])
         self.high = np.array([[2, 2, 3, 3, 3, 30]])
-        self.t_idx = 0
-        self.task = self.task_list[self.t_idx]
+        self.task_list_norm = (np.array(self.task_list) - self.low) / (self.high - self.low)
     
     def update(self, epoch):
         if epoch % self.epoch_per_threshold == 0:
@@ -29,11 +28,8 @@ class TaskScheduler:
         if N is None:
             return self.task_list
         else:
-            sub_task_list = []
-            for i in range(N):
-                task = self.task_list[i]
-                sub_task_list.append(task[0]+task[1]+[task[2]])
-            return sub_task_list
+            sub_tasks = np.random.permutation(len(self.task_list))[:N]
+            return [self.task_list[i] for i in sub_tasks]
 
 
 class CircularList():
