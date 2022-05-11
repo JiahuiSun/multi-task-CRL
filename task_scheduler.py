@@ -6,7 +6,7 @@ class TaskScheduler:
     """
     输出：[[1, 1, 1, 1, 1, 25], [2, 0, 1, 2, 0, 30]]
     """
-    def __init__(self, epoch_per_threshold):
+    def __init__(self, epoch_per_threshold=100):
         self.epoch_per_threshold = epoch_per_threshold
         self.wr_list = [[0.5, 1.5], [1, 1], [1.5, 0.5]]
         self.wc_list = [[0.5, 1, 1.5], [0.5, 1.5, 1], [1, 0.5, 1.5], [1, 1.5, 0.5], [1.5, 0.5, 1], [1.5, 1, 0.5], [1, 1, 1]]
