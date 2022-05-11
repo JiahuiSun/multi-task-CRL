@@ -6,7 +6,8 @@ class TaskScheduler:
     """
     输出：[[1, 1, 1, 1, 1, 25], [2, 0, 1, 2, 0, 30]]
     """
-    def __init__(self):
+    def __init__(self, epoch_per_threshold):
+        self.epoch_per_threshold = epoch_per_threshold
         self.wr_list = [[0.5, 1.5], [1, 1], [1.5, 0.5]]
         self.wc_list = [[0.5, 1, 1.5], [0.5, 1.5, 1], [1, 0.5, 1.5], [1, 1.5, 0.5], [1.5, 0.5, 1], [1.5, 1, 0.5], [1, 1, 1]]
         self.threshold_list = [15, 20, 25, 30]
@@ -16,10 +17,14 @@ class TaskScheduler:
         self.low = np.array([[0, 0, 0, 0, 0, 15]])
         self.high = np.array([[2, 2, 3, 3, 3, 30]])
         self.task_list_norm = (np.array(self.task_list) - self.low) / (self.high - self.low)
+        self.t_idx = 0
+        self.task = self.task_list[self.t_idx]
     
-    def random_subset(self, N=10):
-        task_ids = np.random.choice(len(self.task_list), N, replace=False)
-        return [self.task_list[i] for i in task_ids]
+    def update(self, epoch):
+        if epoch % self.epoch_per_threshold == 0:
+            self.task = self.task_list[self.t_idx%len(self.task_list)]
+            self.t_idx += 1
+        return self.task
 
     def subset(self, N=None):
         if N is None:
