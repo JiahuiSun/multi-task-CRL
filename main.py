@@ -118,7 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('--param_init', action='store_true')
     parser.add_argument('--n_epoch', type=int, default=300)
     parser.add_argument('--episode_per_proc', type=int, default=3)
-    parser.add_argument('--repeat_per_collect', type=int, default=80)
+    parser.add_argument('--repeat_per_collect', type=int, default=20)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
     parser.add_argument('--lr_penalty', type=float, default=5e-2)

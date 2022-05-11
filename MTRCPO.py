@@ -140,8 +140,8 @@ class MTRCPO:
                 if self.recompute_adv and repeat > 0:
                     buffer = self.compute_gae(buffer)
 
-                # Calculate loss for critic
                 value, cost_value, curr_log_probs, mu, sigma = self.evaluate(buffer['obs'], buffer['act'])
+                # Calculate loss for critic
                 target = th.tensor(buffer['target'], dtype=th.float32, device=self.device)
                 cost_target = th.tensor(buffer['cost_target'], dtype=th.float32, device=self.device)
                 # NOTE: 只有不recompute adv时，value clip才有意义
