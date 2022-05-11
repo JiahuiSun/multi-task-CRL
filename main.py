@@ -119,7 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--norm_adv', action='store_false')
     parser.add_argument('--kl_stop', action='store_false')
     parser.add_argument('--param_init', action='store_true')
-    parser.add_argument('--n_epoch', type=int, default=16800)
+    parser.add_argument('--n_epoch', type=int, default=12600)
     parser.add_argument('--episode_per_proc', type=int, default=1)
     parser.add_argument('--epoch_per_task', type=int, default=100, help='#epoch before switch to the next task')
     parser.add_argument('--repeat_per_collect', type=int, default=20)

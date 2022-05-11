@@ -16,8 +16,6 @@ class BaseNet(nn.Module):
             nn.Linear(input_dim, 256),
             nn.Tanh(),
             nn.Linear(256, 256),
-            nn.Tanh(),
-            nn.Linear(256, 256),
             nn.Tanh()
         )
         self.output_dim = 256
