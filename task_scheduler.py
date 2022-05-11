@@ -16,7 +16,6 @@ class TaskScheduler:
         self.task = self.task_list[self.t_idx]
     
     def update(self, epoch):
-        self.t_idx = 4
         if epoch % self.epoch_per_threshold == 0:
             self.task = self.task_list[self.t_idx%len(self.task_list)]
             self.t_idx += 1
