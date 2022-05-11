@@ -93,6 +93,7 @@ def main(args):
         episode_per_proc=args.episode_per_proc,
         repeat_per_collect=args.repeat_per_collect,
         kl_stop=args.kl_stop,
+        norm_adv=args.norm_adv,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         lr_penalty=args.lr_penalty
@@ -112,6 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--penalty_init', type=float, default=1)
     parser.add_argument('--norm_obs', action='store_true')
+    parser.add_argument('--norm_adv', action='store_false')
     parser.add_argument('--kl_stop', action='store_false')
     parser.add_argument('--param_init', action='store_true')
     parser.add_argument('--n_encoder', type=int, default=10)
