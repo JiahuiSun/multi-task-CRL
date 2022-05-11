@@ -25,11 +25,8 @@ class TaskScheduler:
         if N is None:
             return self.task_list
         else:
-            sub_task_list = []
-            for i in range(N):
-                task = self.task_list[i]
-                sub_task_list.append(task[0]+task[1]+[task[2]])
-            return sub_task_list
+            sub_tasks = np.random.permutation(len(self.task_list))[:N]
+            return [self.task_list[i] for i in sub_tasks]
 
 
 class CircularList():
