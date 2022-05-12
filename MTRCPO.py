@@ -134,7 +134,8 @@ class MTRCPO:
 
             # training
             buffer = self.compute_gae(buffer)
-            penalty = F.softplus(self.penalty.detach())
+            self.penalty = F.softplus(self.penalty)
+            penalty = self.penalty.detach()
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
