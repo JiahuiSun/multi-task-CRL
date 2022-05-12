@@ -13,8 +13,11 @@ from task_scheduler import TaskScheduler
 
 
 class Agent(MTRCPO):
-    def __init__(self, env, actor, dist_fn, device='cpu',  episode_per_proc=10) -> None:
+    def __init__(self, env, state_shape,
+        action_shape, actor, dist_fn, device='cpu',  episode_per_proc=10) -> None:
         self.env = env
+        self.state_dim = np.prod(state_shape)
+        self.act_dim = np.prod(action_shape)
         self.actor = actor
         self.dist_fn = dist_fn
         self.device = device
@@ -57,6 +60,8 @@ def main(args):
 
     agent = Agent(
         env=test_envs,
+        state_shape=state_shape,
+        action_shape=action_shape,
         actor=actor,
         dist_fn=dist,
         device=args.device,
