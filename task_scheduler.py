@@ -11,9 +11,13 @@ class TaskScheduler:
         self.wr_list = [[1, 1]]
         self.wc_list = [[1, 1, 1], [0.5, 1, 1.5], [0.5, 1.5, 1], [1, 1.5, 0.5], [1, 0.5, 1.5], [1.5, 0.5, 1], [1.5, 1, 0.5]]
         self.threshold_list = [20, 30, 25, 15]
-        self.task_list = []
+        self.weight_list = []
         for task in list(itertools.product(self.wr_list, self.wc_list, self.threshold_list)):
-            self.task_list.append(task[0]+task[1]+[task[2]])
+            self.weight_list.append(task[0]+task[1]+[task[2]])
+        
+        self.task_list = np.eye(len(self.weight_list)).tolist()
+        self.int2binary = {x: self.task_list[i] for i, x in enumerate(self.weight_list)}
+        self.binary2int = {tuple(self.task_list[i]): x for i, x in enumerate(self.weight_list)}
         self.low = np.array([[0, 0, 0, 0, 0, 15]])
         self.high = np.array([[2, 2, 3, 3, 3, 30]])
         self.t_idx = 0

@@ -204,7 +204,8 @@ class MTRCPO:
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
 
             # update penalty
-            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - task[-1])
+            threshold = self.task_sche.binary2int[tuple(task)][-1]
+            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - threshold)
             self.penalty_optim.zero_grad()
             penalty_loss.backward()
             self.penalty_optim.step()
@@ -213,7 +214,7 @@ class MTRCPO:
             end_time = time.time()
             all_epoch_cost += buffer['avg_cumu_cost']
             cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
-            self.writer.add_scalar('param/threshold', task[-1], epoch)
+            self.writer.add_scalar('param/threshold', threshold, epoch)
             self.writer.add_scalar('param/penalty', penalty, epoch)
             self.writer.add_scalar('metric/avg_cumu_rew', buffer['avg_cumu_rew'], epoch)
             self.writer.add_scalar('metric/avg_cumu_cost', buffer['avg_cumu_cost'], epoch)
@@ -266,9 +267,10 @@ class MTRCPO:
             obs_next, rewards, dones, infos = self.env.step(mapped_actions)
             # 根据weight，自己计算reward和cost是多少
             rewards, costs = np.zeros(self.nproc), np.zeros(self.nproc)
+            tmp = self.task_sche.binary2int[tuple(task)]
             for idx, info in enumerate(infos):
-                reward = info['reward_distance']*task[0] + info['reward_goal']*task[1]
-                cost = info['cost_buttons']*task[2] + info['cost_gremlins']*task[3] + info['cost_hazards']*task[4]
+                reward = info['reward_distance']*tmp[0] + info['reward_goal']*tmp[1]
+                cost = info['cost_buttons']*tmp[2] + info['cost_gremlins']*tmp[3] + info['cost_hazards']*tmp[4]
                 rewards[idx] = reward
                 costs[idx] = cost
 
