@@ -3,6 +3,7 @@ import pickle
 import os
 from tqdm import tqdm
 import torch as th
+from torch import nn
 from torch.optim import Adam
 import torch.nn.functional as F
 from numba import njit
@@ -138,7 +139,7 @@ class MTRCPO:
 
             # 每当训练新的task时，重启penalty
             if epoch % self.epoch_per_task == 0:
-                penalty_param = th.tensor(1.0, dtype=th.float32, requires_grad=True).to(self.device)
+                penalty_param = nn.Parameter(th.tensor(1.0, dtype=th.float32).to(self.device))
                 penalty_optim = Adam([penalty_param], lr=self.lr_penalty)
 
             # training
