@@ -134,8 +134,7 @@ class MTRCPO:
 
             # training
             buffer = self.compute_gae(buffer)
-            self.penalty = F.softplus(self.penalty)
-            penalty = self.penalty.detach()
+            penalty = F.softplus(self.penalty)
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
@@ -187,8 +186,8 @@ class MTRCPO:
                     surr_rew_loss = -th.min(surr1, surr2).mean()
                     surr_cost_loss = -(ratios * cost_adv).mean()
 
-                    total_actor_loss = surr_rew_loss - penalty * surr_cost_loss
-                    total_actor_loss /= (1 + penalty)  # why?
+                    total_actor_loss = surr_rew_loss - penalty.item() * surr_cost_loss
+                    total_actor_loss /= (1 + penalty.item())  # why?
                     self.actor_optim.zero_grad()
                     total_actor_loss.backward()
                     if self.max_grad_norm:  # clip large gradient
@@ -204,7 +203,7 @@ class MTRCPO:
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
 
             # update penalty
-            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - self.cost_lim)
+            penalty_loss = -penalty * (buffer['avg_cumu_cost'] - self.cost_lim)
             self.penalty_optim.zero_grad()
             penalty_loss.backward()
             self.penalty_optim.step()
@@ -214,7 +213,7 @@ class MTRCPO:
             all_epoch_cost += buffer['avg_cumu_cost']
             cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
             self.writer.add_scalar('param/threshold', self.cost_lim, epoch)
-            self.writer.add_scalar('param/penalty', penalty, epoch)
+            self.writer.add_scalar('param/penalty', penalty.item(), epoch)
             self.writer.add_scalar('metric/avg_cumu_rew', buffer['avg_cumu_rew'], epoch)
             self.writer.add_scalar('metric/avg_cumu_cost', buffer['avg_cumu_cost'], epoch)
             self.writer.add_scalar('metric/cost_rate', cost_rate, epoch)

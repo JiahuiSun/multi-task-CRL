@@ -70,13 +70,4 @@ class Penalty(nn.Module):
         self.penalty = nn.Parameter(th.tensor(penalty_init, dtype=th.float32))
     
     def forward(self):
-        # penalty = nn.Parameter
-        # optim = Adam(penalty)
-
-        # loss = -penalty * ()
-        # loss.backward()
-        # optim.step(), get new penalty
-        # penalty = nn.Parameter(F.relu(new penalty))
-        # TODO: 我的疑惑是，梯度更新是对clip之前的penalty还是之后的penalty？
-        # 如果按照TensorFlow是对clip之前的，而我自己的理解是对clip之后的
-        return self.penalty, F.relu(self.penalty).detach()
+        return F.softplus(self.penalty)
