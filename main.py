@@ -42,9 +42,9 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_r = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_c = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_r = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_c = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
@@ -92,6 +92,7 @@ def main(args):
         device=args.device,
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
+        epoch_per_task=args.epoch_per_task,
         episode_per_proc=args.episode_per_proc,
         repeat_per_collect=args.repeat_per_collect,
         kl_stop=args.kl_stop,
@@ -113,7 +114,7 @@ if __name__ == '__main__':
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--penalty_init', type=float, default=1)
-    parser.add_argument('--n_encoder', type=int, default=10)
+    parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--norm_adv', action='store_false')
