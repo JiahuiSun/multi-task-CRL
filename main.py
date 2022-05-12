@@ -92,6 +92,7 @@ def main(args):
         device=args.device,
         # 参数设置参考TensorFlow
         n_epoch=args.n_epoch,
+        epoch_per_task=args.epoch_per_task,
         episode_per_proc=args.episode_per_proc,
         repeat_per_collect=args.repeat_per_collect,
         kl_stop=args.kl_stop,
