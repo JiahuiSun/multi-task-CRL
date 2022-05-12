@@ -1,5 +1,4 @@
 import numpy as np
-import random
 
 
 class TaskScheduler:
@@ -8,11 +7,10 @@ class TaskScheduler:
     """
     def __init__(self, epoch_per_threshold=100):
         self.epoch_per_threshold = epoch_per_threshold
-        self.threshold_list = np.arange(5, 51, 5)
+        self.threshold_list = [30, 40, 50, 45, 35, 25, 15, 5, 10, 20]
         self.task_list = np.eye(len(self.threshold_list)).tolist()
         self.binary2int = {tuple(self.task_list[i]): x for i, x in enumerate(self.threshold_list)}
         self.int2binary = {x: self.task_list[i] for i, x in enumerate(self.threshold_list)}
-        random.shuffle(self.task_list)
         self.t_idx = 0
         self.task = self.task_list[self.t_idx]
     
@@ -30,7 +28,7 @@ class TaskScheduler:
             return [self.task_list[i] for i in sub_tasks]
     
     def parse(self, test_threshold):
-        idx = np.argmin(np.abs(self.threshold_list - test_threshold))
+        idx = np.argmin(np.abs(np.array(self.threshold_list) - test_threshold))
         nearest_threshold = self.threshold_list[idx]
         return self.int2binary[nearest_threshold]
 
