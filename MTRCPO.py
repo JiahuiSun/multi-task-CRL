@@ -348,8 +348,9 @@ class MTRCPO:
         return action.cpu().numpy(), log_prob.cpu().numpy(), mu.cpu().numpy(), sigma.cpu().numpy()
     
     def norm_params(self, params):
-        low, high = self.task_sche.low, self.task_sche.high
-        return (params - low) / (high - low)
+        # low, high = self.task_sche.low, self.task_sche.high
+        # return (params - low) / (high - low)
+        return params
 
     def map_action(self, act):
         act = np.clip(act, -1.0, 1.0)
