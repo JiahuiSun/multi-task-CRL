@@ -16,7 +16,6 @@ class TaskScheduler:
             self.weight_list.append(task[0]+task[1]+[task[2]])
         
         self.task_list = np.eye(len(self.weight_list)).tolist()
-        self.int2binary = {x: self.task_list[i] for i, x in enumerate(self.weight_list)}
         self.binary2int = {tuple(self.task_list[i]): x for i, x in enumerate(self.weight_list)}
         self.low = np.array([[0, 0, 0, 0, 0, 15]])
         self.high = np.array([[2, 2, 3, 3, 3, 30]])
