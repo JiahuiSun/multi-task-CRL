@@ -3,6 +3,7 @@ import pickle
 import os
 from tqdm import tqdm
 import torch as th
+from torch.optim import Adam
 import torch.nn.functional as F
 from numba import njit
 import numpy as np
@@ -66,6 +67,7 @@ class MTRCPO:
         device='cpu',
         # 接下来的参数可调
         n_epoch=1000,
+        epoch_per_task=100,
         episode_per_proc=10,
         value_clip=False,
         clip=0.2,
@@ -98,6 +100,7 @@ class MTRCPO:
         self.dist_fn = dist_fn
 
         self.n_epoch = n_epoch
+        self.epoch_per_task = epoch_per_task
         self.episode_per_proc = episode_per_proc
         self.value_clip = value_clip
         self.clip = clip
@@ -133,9 +136,14 @@ class MTRCPO:
             buffer = self.rollout(task)
             st2 = time.time()
 
+            # 每当训练新的task时，重启penalty
+            if epoch % self.epoch_per_task == 0:
+                penalty_param = th.tensor(1.0, dtype=th.float32, requires_grad=True).to(self.device)
+                penalty_optim = Adam([penalty_param], lr=self.lr_penalty)
+
             # training
             buffer = self.compute_gae(buffer, task)
-            penalty = F.softplus(self.penalty.detach())
+            penalty = F.softplus(penalty_param.detach())
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
                 if self.recompute_adv and repeat > 0:
@@ -205,10 +213,10 @@ class MTRCPO:
 
             # update penalty
             cost_lim = self.task_sche.binary2int[tuple(task)]
-            penalty_loss = -self.penalty * (buffer['avg_cumu_cost'] - cost_lim)
-            self.penalty_optim.zero_grad()
+            penalty_loss = -penalty_param * (buffer['avg_cumu_cost'] - cost_lim)
+            penalty_optim.zero_grad()
             penalty_loss.backward()
-            self.penalty_optim.step()
+            penalty_optim.step()
 
             # log everything
             end_time = time.time()
