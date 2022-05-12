@@ -1,5 +1,5 @@
 import numpy as np
-import itertools
+import random
 
 
 class TaskScheduler:
@@ -9,9 +9,10 @@ class TaskScheduler:
     def __init__(self, epoch_per_threshold=100):
         self.epoch_per_threshold = epoch_per_threshold
         self.threshold_list = np.arange(5, 101, 5)
-        # int2binary = lambda x: [int(tmp) for tmp in format(x, 'b').zfill(6)]
-        self.task_list = np.eye(20).tolist()
+        self.task_list = np.eye(len(self.threshold_list)).tolist()
         self.binary2int = {tuple(self.task_list[i]): x for i, x in enumerate(self.threshold_list)}
+        self.int2binary = {x: self.task_list[i] for i, x in enumerate(self.threshold_list)}
+        random.shuffle(self.task_list)
         self.t_idx = 0
         self.task = self.task_list[self.t_idx]
     
@@ -27,6 +28,11 @@ class TaskScheduler:
         else:
             sub_tasks = np.random.permutation(len(self.task_list))[:N]
             return [self.task_list[i] for i in sub_tasks]
+    
+    def parse(self, test_threshold):
+        idx = np.argmin(np.abs(self.threshold_list - test_threshold))
+        nearest_threshold = self.threshold_list[idx]
+        return self.int2binary[nearest_threshold]
 
 
 class CircularList():
