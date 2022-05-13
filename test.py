@@ -51,7 +51,7 @@ def main(args):
     test_envs.seed(args.seed)
 
     # actor
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     actor.load_state_dict(th.load(f"{args.actor_path}", map_location=args.device))
 
@@ -84,6 +84,7 @@ if __name__ == '__main__':
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--taskid_dim', type=int, default=20)
+    parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--episode_per_proc', type=int, default=10)
     parser.add_argument('--threshold', type=float, default=25)
