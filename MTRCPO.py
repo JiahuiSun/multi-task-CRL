@@ -133,10 +133,8 @@ class MTRCPO:
 
             # training
             buffer = self.compute_gae(buffer)
-            # current penalty
             avg_cumu_cost = np.mean([data['avg_cumu_cost'] for _, data in buffer.items()])
             avg_threshold = np.mean([task[-1] for task in sub_task_list])
-            penalty = self.penalty * (avg_cumu_cost - avg_threshold)
 
             policy_update_flag = 1
             for repeat in range(self.repeat_per_collect):
@@ -182,8 +180,8 @@ class MTRCPO:
                     surr2 = th.clamp(ratios, 1 - self.clip, 1 + self.clip) * adv
                     surr_rew_loss = -th.min(surr1, surr2).mean()
                     surr_cost_loss = -(ratios * cost_adv).mean()
-                    total_actor_loss = surr_rew_loss - penalty * surr_cost_loss
-                    total_actor_loss /= (1 + penalty)  # why?
+                    total_actor_loss = surr_rew_loss - self.penalty * surr_cost_loss
+                    total_actor_loss /= (1 + self.penalty)  # why?
                     all_task_actor_loss += 1 / len(sub_task_list) * total_actor_loss
 
                     # Calculate kl
@@ -219,7 +217,7 @@ class MTRCPO:
             all_epoch_cost += avg_cumu_cost
             cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
             self.writer.add_scalar('param/avg_threshold', avg_threshold, epoch)
-            self.writer.add_scalar('param/penalty', penalty, epoch)
+            self.writer.add_scalar('param/penalty', self.penalty, epoch)
             self.writer.add_scalar('metric/avg_cumu_rew', avg_cumu_rew, epoch)
             self.writer.add_scalar('metric/avg_cumu_cost', avg_cumu_cost, epoch)
             self.writer.add_scalar('metric/cost_rate', cost_rate, epoch)

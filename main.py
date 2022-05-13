@@ -27,12 +27,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    # train_envs = DummyVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
-    # )
-    train_envs = SubprocVectorEnv(
+    train_envs = DummyVectorEnv(
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
+    # train_envs = SubprocVectorEnv(
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
+    # )
     task_sche = TaskScheduler()
 
     # seed
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=14)
+    parser.add_argument('--nproc', type=int, default=2)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--param_init', action='store_true')
     parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--n_epoch', type=int, default=200)
-    parser.add_argument('--episode_per_proc', type=int, default=10)
+    parser.add_argument('--episode_per_proc', type=int, default=1)
     parser.add_argument('--repeat_per_collect', type=int, default=20)
     parser.add_argument('--lr_actor', type=float, default=3e-4)
     parser.add_argument('--lr_critic', type=float, default=1e-3)
