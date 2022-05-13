@@ -59,7 +59,7 @@ class SoftModularizedMLP(nn.Module):
         super().__init__()
         self.obs_encoder = nn.Sequential(
             nn.Linear(obs_dim, hidden_features),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(hidden_features, hidden_features)
         )
         self.task_encoder = nn.Sequential(
@@ -76,7 +76,7 @@ class SoftModularizedMLP(nn.Module):
                 out_features=hidden_features,
                 bias=bias,
             )
-            layers.append(nn.Sequential(linear, nn.ReLU()))
+            layers.append(nn.Sequential(linear, nn.Tanh()))
             # Each layer is a combination of a moe layer and ReLU.
             current_in_features = hidden_features
         linear = Linear(
@@ -174,10 +174,10 @@ class RoutingNetwork(nn.Module):
 
     def forward(self, obs, task_info):
         inp = self.projection_before_routing(obs * task_info)
-        p = self.W_d[0](F.relu(inp))  # batch x num_experts ** 2
+        p = self.W_d[0](F.tanh(inp))  # batch x num_experts ** 2
         prob = [p]
         for W_u, W_d in zip(self.W_u, self.W_d[1:]):
-            p = W_d(F.relu((W_u(prob[-1]) * inp)))
+            p = W_d(F.tanh((W_u(prob[-1]) * inp)))
             prob.append(p)
         prob_tensor = th.cat(
             [self._process_logprob(logprob=logprob).unsqueeze(0) for logprob in prob],
