@@ -15,20 +15,20 @@ class BaseNet(nn.Module):
         input_dim = int(np.prod(state_shape))
         self.state_encoder_list = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(input_dim, 128),
+                nn.Linear(input_dim, 256),
                 nn.Tanh(),
-                nn.Linear(128, 128)
+                nn.Linear(256, 256)
             )
             for _ in range(n_encoder)
         ])
         self.task_encoder = nn.Sequential(
-            nn.Linear(taskid_dim, 128)
+            nn.Linear(taskid_dim, 256)
         )
         self.mlp = nn.Sequential(
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
             nn.Tanh()
         )
-        self.output_dim = 256
+        self.output_dim = 512
     
     def forward(self, obs, taskid):
         state_embs = th.stack([state_encoder(obs) for state_encoder in self.state_encoder_list], dim=0)  # KBF
