@@ -16,13 +16,13 @@ class BaseNet(nn.Module):
         self.state_encoder_list = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(input_dim, 128),
-                nn.Tanh()
+                nn.Tanh(),
+                nn.Linear(128, 128)
             )
             for _ in range(n_encoder)
         ])
         self.task_encoder = nn.Sequential(
-            nn.Linear(taskid_dim, 128),
-            nn.Tanh()
+            nn.Linear(taskid_dim, 128)
         )
         self.mlp = nn.Sequential(
             nn.Linear(128, 128),
