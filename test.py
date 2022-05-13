@@ -40,18 +40,13 @@ def main(args):
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
 
-    # task preprocess
-    task_sche = TaskScheduler()
-    # 我告诉你我想测试哪个threshold，比如100，你给我返回对应的最近的one-hot
-    task = task_sche.parse(args.weight)
-
     # seed
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
     test_envs.seed(args.seed)
 
     # actor
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     actor.load_state_dict(th.load(f"{args.actor_path}", map_location=args.device))
 
@@ -79,11 +74,12 @@ if __name__ == '__main__':
     parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--nproc', type=int, default=10)
+    parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--actor_path', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
-    parser.add_argument('--taskid_dim', type=int, default=20)
+    parser.add_argument('--taskid_dim', type=int, default=6)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--episode_per_proc', type=int, default=10)
     parser.add_argument('--weight', nargs='+', type=float)
