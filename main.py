@@ -28,12 +28,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    train_envs = DummyVectorEnv(
-        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
-    )
-    # train_envs = SubprocVectorEnv(
+    # train_envs = DummyVectorEnv(
     #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     # )
+    train_envs = SubprocVectorEnv(
+        [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
+    )
     task_sche = TaskScheduler(epoch_per_threshold=args.epoch_per_task)
 
     # seed
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=2)
+    parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
