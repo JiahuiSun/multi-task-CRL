@@ -41,9 +41,9 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty and their optimizers
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_r = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_c = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_r = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
+    base_c = BaseNet(state_shape, args.taskid_dim, n_encoder=args.n_encoder).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=28)
+    parser.add_argument('--nproc', type=int, default=14)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('--norm_adv', action='store_false')
     parser.add_argument('--kl_stop', action='store_false')
     parser.add_argument('--param_init', action='store_true')
-    parser.add_argument('--n_encoder', type=int, default=10)
+    parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--n_epoch', type=int, default=200)
     parser.add_argument('--episode_per_proc', type=int, default=10)
     parser.add_argument('--repeat_per_collect', type=int, default=20)
