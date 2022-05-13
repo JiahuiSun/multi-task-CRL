@@ -62,7 +62,7 @@ class MTRCPO:
         critic_optim,
         penalty_optim,
         dist_fn,
-        save_freq=10,
+        save_freq=100,
         writer=None,
         device='cpu',
         # 接下来的参数可调
