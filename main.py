@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
-from network import BaseNet, Actor, Critic
+from network import BaseNet, Actor, Critic, SoftModularizedMLP
 from MTRCPO import MTRCPO
 from task_scheduler import TaskScheduler
 
@@ -28,12 +28,12 @@ def main(args):
     env = gym.make(args.task)
     state_shape = env.observation_space.shape
     action_shape = env.action_space.shape
-    # train_envs = DummyVectorEnv(
-    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
-    # )
-    train_envs = SubprocVectorEnv(
+    train_envs = DummyVectorEnv(
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
+    # train_envs = SubprocVectorEnv(
+    #     [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
+    # )
     task_sche = TaskScheduler(epoch_per_threshold=args.epoch_per_task)
 
     # seed
@@ -42,9 +42,12 @@ def main(args):
     train_envs.seed(args.seed)
 
     # actor, critic, cost_critic, penalty
-    base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_r = BaseNet(state_shape, args.taskid_dim).to(args.device)
-    base_c = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    # base_a = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    # base_r = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    # base_c = BaseNet(state_shape, args.taskid_dim).to(args.device)
+    base_a = SoftModularizedMLP(4, np.prod(state_shape), args.taskid_dim, 128, 4, 128).to(args.device)
+    base_r = SoftModularizedMLP(4, np.prod(state_shape), args.taskid_dim, 128, 4, 128).to(args.device)
+    base_c = SoftModularizedMLP(4, np.prod(state_shape), args.taskid_dim, 128, 4, 128).to(args.device)
     actor = Actor(base_a, action_shape).to(args.device)
     critic = Critic(base_r).to(args.device)
     cost_critic = Critic(base_c).to(args.device)
@@ -108,7 +111,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
     parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
     parser.add_argument('--seed', type=int, default=100)
-    parser.add_argument('--nproc', type=int, default=10)
+    parser.add_argument('--nproc', type=int, default=2)
     parser.add_argument('--log_dir', type=str, default='output')
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
