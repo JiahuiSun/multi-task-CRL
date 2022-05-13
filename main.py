@@ -114,7 +114,7 @@ if __name__ == '__main__':
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--penalty_init', type=float, default=1)
-    parser.add_argument('--n_encoder', type=int, default=10)
+    parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--taskid_dim', type=int, default=10)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--norm_adv', action='store_false')
