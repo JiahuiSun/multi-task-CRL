@@ -83,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--device', type=str, default='cuda' if th.cuda.is_available() else 'cpu'
     )
-    parser.add_argument('--taskid_dim', type=int, default=20)
+    parser.add_argument('--taskid_dim', type=int, default=10)
     parser.add_argument('--n_encoder', type=int, default=4)
     parser.add_argument('--norm_obs', action='store_true')
     parser.add_argument('--episode_per_proc', type=int, default=10)
