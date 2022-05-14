@@ -7,6 +7,6 @@ do
     for threshold in 0 5 25 27.5 30 32.5 35 37.5 55 100
     do
         echo seed: $seed threshold: $threshold
-        python test.py --device $device --actor_path $actor_path --seed $seed --threshold $threshold --task $task --taskid_dim 1
+        python test.py --device $device --actor_path $actor_path --seed $seed --threshold $threshold --task $task --taskid_dim 1 --nproc 50 --episode_per_proc 2
     done
 done
