@@ -41,9 +41,9 @@ def main(args):
     )
 
     # task preprocess
-    task_sche = TaskScheduler()
-    # 我告诉你我想测试哪个threshold，比如100，你给我返回对应的最近的one-hot
-    task = task_sche.parse(args.threshold)
+    # task_sche = TaskScheduler()
+    # # 我告诉你我想测试哪个threshold，比如100，你给我返回对应的最近的one-hot
+    # task = task_sche.parse(args.threshold)
 
     # seed
     np.random.seed(args.seed)
@@ -68,7 +68,7 @@ def main(args):
         episode_per_proc=args.episode_per_proc
     )
     st = time.time()
-    buffer = agent.rollout(task)
+    buffer = agent.rollout([args.threshold/50])  # 归一化
     print(f"avg_cumu_rew: {buffer['avg_cumu_rew']}")
     print(f"avg_cumu_cost: {buffer['avg_cumu_cost']}")
     print(f"time: {time.time() - st:.2f}")
