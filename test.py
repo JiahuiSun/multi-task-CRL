@@ -9,7 +9,6 @@ from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
 from network import BaseNet, Actor
 from MTRCPO import MTRCPO
-from task_scheduler import TaskScheduler
 
 
 class Agent(MTRCPO):
@@ -63,6 +62,7 @@ def main(args):
         episode_per_proc=args.episode_per_proc
     )
     st = time.time()
+    print(f"task: {args.weight}")
     buffer = agent.rollout(args.weight)
     print(f"avg_cumu_rew: {buffer['avg_cumu_rew']}")
     print(f"avg_cumu_cost: {buffer['avg_cumu_cost']}")
@@ -71,7 +71,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Multi-task Constrained RL")
-    parser.add_argument('--task', type=str, default='Safexp-PointGoal1-v0')
+    parser.add_argument('--task', type=str, default='Safexp-PointButton1-v0')
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--nproc', type=int, default=10)
     parser.add_argument('--n_encoder', type=int, default=4)
