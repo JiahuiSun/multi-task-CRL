@@ -9,12 +9,14 @@ from tianshou.env import DummyVectorEnv, SubprocVectorEnv
 
 from network import BaseNet, Actor
 from MTRCPO import MTRCPO
+from task_scheduler import TaskScheduler
 
 
 class Agent(MTRCPO):
-    def __init__(self, env, state_shape,
+    def __init__(self, env, task_sche, state_shape,
         action_shape, actor, dist_fn, device='cpu',  episode_per_proc=10) -> None:
         self.env = env
+        self.task_sche = task_sche
         self.state_dim = np.prod(state_shape)
         self.act_dim = np.prod(action_shape)
         self.actor = actor
@@ -38,6 +40,7 @@ def main(args):
     test_envs = SubprocVectorEnv(
         [lambda: gym.make(args.task) for _ in range(args.nproc)], norm_obs=args.norm_obs
     )
+    task_sche = TaskScheduler()
 
     # seed
     np.random.seed(args.seed)
@@ -54,6 +57,7 @@ def main(args):
 
     agent = Agent(
         env=test_envs,
+        task_sche=task_sche,
         state_shape=state_shape,
         action_shape=action_shape,
         actor=actor,
