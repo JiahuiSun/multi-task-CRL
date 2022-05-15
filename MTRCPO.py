@@ -125,14 +125,14 @@ class MTRCPO:
         self.nproc = len(env)
         self.step_per_episode = 1000
         self.step_per_task = self.step_per_episode * self.episode_per_proc
+        self.task2idx = {tuple(task): i for i, task in enumerate(self.task_sche.task_list)}
+        self.n_task = len(self.task_sche.task_list)
  
     def learn(self):
         st_time = time.time()
-        all_epoch_cost = 0
         for epoch in tqdm(range(self.n_epoch)):
             st1 = time.time()
-            sub_task_list = self.task_sche.subset()
-            buffer = self.rollout(sub_task_list=sub_task_list)
+            buffer = self.rollout(sub_task_list=self.task_sche.task_list)
             st2 = time.time()
 
             # training
@@ -167,7 +167,7 @@ class MTRCPO:
                         critic_loss = (target - value).pow(2).mean()
                         cost_critic_loss = (cost_target - cost_value).pow(2).mean()
                     total_critic_loss = critic_loss + cost_critic_loss
-                    all_task_critic_loss += 1 / len(sub_task_list) * total_critic_loss
+                    all_task_critic_loss += 1 / self.n_task * total_critic_loss
 
                     # Calculate loss for actor
                     adv = th.tensor(data['adv'], dtype=th.float32, device=self.device)
@@ -182,13 +182,13 @@ class MTRCPO:
                     surr2 = th.clamp(ratios, 1 - self.clip, 1 + self.clip) * adv
                     surr_rew_loss = -th.min(surr1, surr2).mean()
                     surr_cost_loss = -(ratios * cost_adv).mean()
-                    total_actor_loss = surr_rew_loss - penalty * surr_cost_loss
-                    total_actor_loss /= (1 + penalty)  # why?
-                    all_task_actor_loss += 1 / len(sub_task_list) * total_actor_loss
+                    total_actor_loss = surr_rew_loss - penalty[self.task2idx[tuple(param)]] * surr_cost_loss
+                    # total_actor_loss /= (1 + penalty)  # why?
+                    all_task_actor_loss += 1 / self.n_task * total_actor_loss
 
                     # Calculate kl
                     d_kl = gaussian_kl(mu, sigma, data['mu'], data['sigma'])
-                    all_task_kl += 1 / len(sub_task_list) * d_kl
+                    all_task_kl += 1 / self.n_task * d_kl
 
                 self.critic_optim.zero_grad()
                 all_task_critic_loss.backward()
@@ -214,23 +214,24 @@ class MTRCPO:
                         print(f'Early stopping at step {repeat} due to reaching max kl.')
 
             # update penalty
-            avg_cumu_cost = np.mean([data['avg_cumu_cost'] for _, data in buffer.items()])
-            avg_threshold = np.mean([task[-1] for task in sub_task_list])
-            penalty_loss = -self.penalty * (avg_cumu_cost - avg_threshold)
+            all_task_avg_cumu_cost = th.zeros(self.n_task, dtype=th.float32).to(self.device)
+            all_task_threshold = th.zeros(self.n_task, dtype=th.float32).to(self.device)
+            for task, idx in self.task2idx.items():
+                all_task_avg_cumu_cost[idx] = buffer[tuple(task)]['avg_cumu_cost']
+                all_task_threshold[idx] = task[-1]
+            penalty_loss = th.sum(-self.penalty * (all_task_avg_cumu_cost - all_task_threshold))
             self.penalty_optim.zero_grad()
             penalty_loss.backward()
             self.penalty_optim.step()
 
             # log everything
             end_time = time.time()
-            avg_cumu_rew = np.mean([data['avg_cumu_rew'] for _, data in buffer.items()])
-            all_epoch_cost += avg_cumu_cost
-            cost_rate = all_epoch_cost / ((epoch+1)*self.step_per_episode)
-            self.writer.add_scalar('param/avg_threshold', avg_threshold, epoch)
-            self.writer.add_scalar('param/penalty', penalty, epoch)
-            self.writer.add_scalar('metric/avg_cumu_rew', avg_cumu_rew, epoch)
-            self.writer.add_scalar('metric/avg_cumu_cost', avg_cumu_cost, epoch)
-            self.writer.add_scalar('metric/cost_rate', cost_rate, epoch)
+            for task, idx in self.task2idx.items():
+                self.writer.add_scalar(f'task{idx}/threshold', task[-1], epoch)
+                self.writer.add_scalar(f'task{idx}/penalty', penalty[idx], epoch)
+                self.writer.add_scalar(f'task{idx}/avg_cumu_rew', buffer[tuple(task)]['avg_cumu_rew'], epoch)
+                self.writer.add_scalar(f'task{idx}/avg_cumu_cost', buffer[tuple(task)]['avg_cumu_cost'], epoch)
+
             self.writer.add_scalar('loss/all_task_actor_loss', all_task_actor_loss.item(), epoch)
             self.writer.add_scalar('loss/all_task_critic_loss', all_task_critic_loss.item(), epoch)
             self.writer.add_scalar('time/rollout', st2-st1, epoch)
